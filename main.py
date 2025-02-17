@@ -5,6 +5,9 @@ from density_matrix_from_exp import generate_rho_rho_delta
 from deprecated.density_matrix_gen import prova
 
 
+## fidelity( |psi>, |psi+delta>) = | |psi> |psi+delta> |s
+
+
 # Truncated Quantum Fisher Information (TQFI) bounds
 def compute_tqfi_bounds(rho, rho_delta, m):
     eigvals, eigvecs = np.linalg.eigh(rho)

@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.linalg import expm
 
+DEBUG = True
+
 
 def pauli_matrices():
     """Returns the Pauli matrices."""
@@ -11,14 +13,14 @@ def pauli_matrices():
     return {"I": I, "X": X, "Y": Y, "Z": Z}
 
 
-def generate_rho(a_x, h_x):
+def generate_rho(a_x, h_z):
     """
     Generates the density matrix rho using the unitary evolution defined by
     U = exp(-i (a_x s_x s_x + h_x s_z)) applied to the initial state |00>.
 
     Parameters:
     - a_x: Coefficient for the s_x ⊗ s_x term in the Hamiltonian.
-    - h_x: Coefficient for the s_z term in the Hamiltonian.
+    - h_z: Coefficient for the s_z term in the Hamiltonian.
 
     Returns:
     - rho: The 2-qubit density matrix as numpy array).
@@ -27,10 +29,17 @@ def generate_rho(a_x, h_x):
     paulis = pauli_matrices()
     I, X, Z = paulis["I"], paulis["X"], paulis["Z"]
 
-    # Define the Hamiltonian H = a_x * (s_x ⊗ s_x) + h_x * (s_z ⊗ I)
+    # Define the Hamiltonian H = a_x * (s_x ⊗ s_x) + h_z * (s_z ⊗ I)
     # it defines system dynamics
     # H = a_x * np.kron(X, X) + h_x * np.kron(Z, I)  ## check
-    H = a_x * np.kron(X, X) + h_x * np.kron(Z, I) + h_x * np.kron(I, Z)  ## check
+    H = a_x * np.kron(X, X) + h_z * np.kron(Z, I) + h_z * np.kron(I, Z)  ## check
+
+    if DEBUG:
+        print(f"Hamiltonian H = {H}")
+        print("terms:")
+        print(a_x * np.kron(X, X))
+        print(h_z * np.kron(Z, I))
+        print(h_z * np.kron(I, Z))
 
     # Compute the unitary operator U = exp(-iH)
     U = expm(-1j * H)
