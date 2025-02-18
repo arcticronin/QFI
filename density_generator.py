@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import expm
+import pandas as pd
 
 
 class IsingQuantumState:
@@ -41,35 +42,35 @@ class IsingQuantumState:
         # where we put 'op'
         I = self.paulis["I"]
         operators = []
-        for i in range(self.n):
+        for i in range(self.n):  # build the list of the operators
             operators.append(op if i == site else I)
+
         # Take the tensor product in order
         out = operators[0]
         for i in range(1, self.n):
             out = np.kron(out, operators[i])
         return out
 
-    def _two_site_interaction(self, op1, site1, op2, site2):
+    def _two_site_interaction(self, op, site1, site2):
         """
-        Builds an n-qubit operator that applies 'op1' on 'site1' and 'op2' on 'site2',
-        acting like identity on other sites.
+        Constructs an n-qubit operator applying 'op' on site1 and site2.
         """
-        # We'll build single-site operators and multiply them
-        # I am reusing `_single_site_operator`, but at some point if needed Ican implement a loop approach
-        if site1 == site2:
-            raise ValueError("site1 and site2 must be different.")
+        I = self.paulis["I"]
+        operators = [I] * self.n  # Initialize all sites as identity
+        operators[site1] = op  # modify the 2 we want to apply the operator
+        operators[site2] = op
 
-        # For clarity, let's build separately, then multiply
-        # Sincle site alresdy has the identity on the other sites
-        op_on_site1 = self._single_site_operator(op1, site1)
-        op_on_site2 = self._single_site_operator(op2, site2)
-        return op_on_site1 @ op_on_site2
+        # Compute the tensor product
+        out = operators[0]
+        for i in range(1, self.n):
+            out = np.kron(out, operators[i])
+        return out
 
     def _construct_hamiltonian(self):
         """
         Constructs the n-qubit Ising-like Hamiltonian:
 
-        For a 1D chain of n qubits with open boundary conditions:
+        For a 1D chain of n qubits with OPEN boundary conditions:
             H = a_x * sum_{i=0 to n-2} (X_i X_{i+1})
                 + h_z * sum_{i=0 to n-1} (Z_i)
 
@@ -84,12 +85,18 @@ class IsingQuantumState:
 
         # Sum over pairs (i, i+1) for the X-X interaction (anti_diagonal?)
         for i in range(self.n - 1):
-            H += self.a_x * self._two_site_interaction(X, i, X, i + 1)
+            H += self.a_x * self._two_site_interaction(X, i, i + 1)
+
+        # print("H at step 1")
+        # print(pd.DataFrame(H))
 
         # Local field terms: h_z * Z_i
         for i in range(self.n):
-            ## Caso i = 0, i = n-1? boundary contitions?
+            ## Caso i = 0, i = n-1? boundary contitions? OPEN BOUNDARY
             H += self.h_z * self._single_site_operator(Z, i)
+        # print("H at step 2")
+        # print(pd.DataFrame(H))
+
         return H
 
     def generate_density_matrix(self):
@@ -102,6 +109,7 @@ class IsingQuantumState:
         """
         # Construct the Hamiltonian
         H = self._construct_hamiltonian()
+
         # Unitary evolution operator
         U = expm(-1j * H)
 

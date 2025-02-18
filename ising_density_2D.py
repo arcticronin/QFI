@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import expm
+import pandas as pd
 
 # Define Pauli matrices
 
@@ -40,6 +41,9 @@ def generate_density_matrix(a_x, h_z):
 
     # Compute the unitary evolution operator U = exp(-iH)
     U = expm(-1j * H)
+
+    print("la U e': ")
+    print(pd.DataFrame(U))
 
     # Define the initial state |00> in the computational basis
     ket_00 = np.array([1, 0, 0, 0], dtype=complex)

@@ -136,7 +136,7 @@ h_z = 0.5  # Coefficient for s_z
 # Generating the quantum states rho(theta) and rho(theta + delta)
 # rho_theta, rho_theta_delta = generate_rho_rho_delta(a_x, h_z, delta)
 
-qs = IsingQuantumState(n=10, a_x=a_x, h_z=h_z)
+qs = IsingQuantumState(n=3, a_x=a_x, h_z=h_z)
 
 rho_theta, rho_theta_delta = qs.generate_density_matrices_with_perturbation()
 
