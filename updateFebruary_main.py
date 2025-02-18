@@ -8,6 +8,10 @@ from qiskit.quantum_info import DensityMatrix
 
 from density_generator import IsingQuantumState
 
+# debug
+DEBUG = 1
+
+
 # --------------------------------------------------
 # Truncated Quantum Fisher Information (TQFI) bounds
 # --------------------------------------------------
@@ -35,6 +39,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta):
     """
     # Step 1: Eigenvalue decomposition
     eigvals, eigvecs = np.linalg.eigh(rho)
+
     idx = np.argsort(eigvals)[::-1]  # Descending order
     eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
 
