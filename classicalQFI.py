@@ -12,8 +12,8 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     4. Estimate the lower and upper bounds of TQFI.
 
     Parameters:
-    - rho: Density matrix at parameter theta.
-    - rho_delta: Density matrix at parameter theta + delta.
+    - rho: Density matrix at parameter theta. ("probe" state)
+    - rho_delta: Density matrix at parameter theta + delta. ("error" state)
     - m: Truncation parameter for principal components.
     - delta: Small shift in parameter for derivative approximation.
 
@@ -49,9 +49,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     )
 
     # Step 4: Compute TQFI bounds using fidelity definitions
-    lower_tqfi = (
-        8 * (1 - fidelity_generalized) / (delta**2)
-    )  # TODO check this delta on the paper
+    lower_tqfi = 8 * (1 - fidelity_generalized) / (delta**2)
     upper_tqfi = 8 * (1 - fidelity_truncated) / (delta**2)
 
     if DEBUG:
