@@ -92,6 +92,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     )
 
     # Step 3: Compute truncated fidelity
+
     # (Fidelity between truncated rho and truncated rho_delta)
     fidelity_truncated = np.real(np.trace(np.dot(rho_trunc, rho_delta_trunc)))
 
@@ -104,8 +105,8 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     true_fidelity = helper_functions.fidelity(rho, rho_delta, DEBUG=True)
 
     # Step 4: Compute TQFI bounds using fidelity definitions
-    lower_tqfi = 8 * (1 - fidelity_generalized) / (delta**2)
-    upper_tqfi = 8 * (1 - fidelity_truncated) / (delta**2)
+    lower_tqfi = 8 * (1 - fidelity_truncated) / (delta**2)
+    upper_tqfi = 8 * (1 - fidelity_generalized) / (delta**2)
 
     ## limit d-> 0 of true_qfi = -4 * (delta**2) * true_fidelity
     ## appriximated by
