@@ -56,7 +56,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     # rho truncated
     eigvals, eigvecs = np.linalg.eigh(rho)
 
-    idx = (np.argsort(eigvals))[::-1]  # Descending order
+    idx = (np.argsort(eigvals))[::-1]  # Descending order (largest first)
     eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
 
     # Step 2: Truncate rho to m-largest eigenvalues/eigenvectors
@@ -78,6 +78,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
 
     idx = (np.argsort(eigvals_delta))[::-1]  # Descending order
     # no need to sortin the function they are already sorted Ascending
+
     eigvals_delta, eigvecs_delta = eigvals_delta[idx], eigvecs_delta[:, idx]
     # Step 2:
     eigvals_trunc_delta = eigvals_delta[:m]
@@ -103,7 +104,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     )
 
     # Step 3.2: (optional) compute true fidelity
-    fidelity_true = helper_functions.fidelity(rho, rho_delta, DEBUG=True)
+    fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=True)
 
     # Step 4: Compute TQFI bounds using fidelity definitions
     lower_tqfi = 8 * (1 - fidelity_truncated) / (delta**2)
@@ -121,10 +122,11 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     # step 5: Subfidelity and superbounds (B-2 on theoretical framework on paper)
 
     ## TODO check fidelity and where it is used
-    
+
     E = np.real(E_subfidelity(rho_trunc, rho_delta_trunc))
     R = np.real(R_superfidelity(rho_trunc, rho_delta_trunc))
 
+    # from the paper it uses the square root of E and R in place of the fidelity ()hard for mixed states)
     sub_qfi_bound = I_induced_bound(f_theta_theta_delta=np.sqrt(E), delta=delta)
 
     super_qfi_bound = I_induced_bound(f_theta_theta_delta=np.sqrt(R), delta=delta)

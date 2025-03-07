@@ -22,7 +22,7 @@ def fidelity_pure_states(rho_1, rho_2):
     return fidelity
 
 
-def fidelity(rho, rho_delta, DEBUG=False):
+def fidelity(rho, rho_delta, root=False, DEBUG=False):
     if not (is_density_matrix(rho) and is_density_matrix(rho_delta)):
         raise ValueError("Inputs must be valid density matrices.")
 
@@ -31,7 +31,11 @@ def fidelity(rho, rho_delta, DEBUG=False):
     X = sqrtm(sqrt_rho @ rho_delta @ sqrt_rho)
 
     # F = np.min(np.array([(np.real(np.trace(X))), 1]))
-    F = np.trace(X)
+
+    if root == True:
+        F = np.trace(X)
+    else:  # standard formula
+        F = (np.trace(X)) ** 2
 
     if DEBUG:
         # print("rho squared trace:", np.real(np.trace(rho @ rho)))
