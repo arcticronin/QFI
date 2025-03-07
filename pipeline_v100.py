@@ -50,7 +50,7 @@ def simulation(
     results = classicalQFI.compute_tqfi_bounds(
         rho=rho, rho_delta=rho_delta, m=m, delta=delta
     )
-    qfi_from_SLD = model.quantum_fisher_information(delta=delta, d=derivative_delta)
+    qfi_from_SLD = model.compute_qfi_with_sld(delta=delta, d=derivative_delta)
 
     # append the true QFI to the results, taken using the pure states,
     # before the partial trace (this idea was not good)

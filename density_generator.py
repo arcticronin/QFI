@@ -201,11 +201,12 @@ class IsingQuantumState:
 
         return rho_reduced.full(), rho_delta_reduced.full()  # Return as NumPy arrays
 
-    def quantum_fisher_information(
+    def compute_qfi_with_sld(
         self, delta, d=1e-5
     ):  # this is the delta for the numerical derivative
         """
-        Compute the Quantum Fisher Information (QFI) for a mixed quantum state.
+        Compute the Quantum Fisher Information (QFI) for a mixed quantum state,
+        using the symmetric logarithmic derivative (SLD).
 
         Parameters:
         rho  : ndarray
