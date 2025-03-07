@@ -1,5 +1,58 @@
 import numpy as np
-from scipy.linalg import sqrtm
+from scipy.linalg import sqrtm, eigh, svd
+
+
+## the Uhlmann is sqyared, the paper uses this
+def trace_norm_rho_rho_delta(rho1, rho2):
+    """
+    Computes the trace norm || sqrt(rho1) sqrt(rho2) ||_1
+    for two density matrices rho_sigma, rho_(sigma + delta).
+    """
+    # 1) Compute the principal square root of rho1 and rho2
+
+    # print("rho.dtype =", rho1.dtype)
+    # print("rho_delta.dtype =", rho2.dtype)
+
+    sqrt_rho1 = sqrtm(rho1).astype(np.complex128)
+    sqrt_rho2 = sqrtm(rho2).astype(np.complex128)
+
+    # print("rho.dtype =", sqrt_rho1.dtype)
+    # print("rho_delta.dtype =", sqrt_rho2.dtype)
+
+    # 2) Form the product sqrt(rho1)*sqrt(rho2)
+    product = sqrt_rho1 @ sqrt_rho2
+
+    # 3) Compute all singular values (σ_i)
+    singular_vals = np.linalg.svd(product, compute_uv=False)
+
+    # 4) The trace norm is the sum of the singular values
+    return np.sum(singular_vals)
+
+
+def truncate_density_matrix(rho, m, DEBUG=False):
+    """
+    Truncate a density matrix to its m-largest eigenvalues/eigenvectors.
+    """
+    # rho truncated
+    eigvals, eigvecs = np.linalg.eigh(rho)
+
+    idx = np.argsort(eigvals)[::-1]  # Descending order (largest first)
+    eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
+
+    # Step 2: Truncate rho to m-largest eigenvalues/eigenvectors
+    eigvals_trunc = eigvals[:m]
+    eigvecs_trunc = eigvecs[:, :m]
+
+    # if DEBUG:
+    #    print(eigvals_trunc)
+
+    # Construct the truncated density matrix
+    rho_trunc = sum(
+        eigvals_trunc[i] * np.outer(eigvecs_trunc[:, i], eigvecs_trunc[:, i].conj())
+        for i in range(m)
+    )
+
+    return rho_trunc
 
 
 def is_density_matrix(mat):
@@ -43,8 +96,8 @@ def fidelity(rho, rho_delta, root=False, DEBUG=False):
         print(f"Fidelity F = {F}")
         # print("Difference between matrices:\n", np.abs(rho - rho_delta))
         # print("Maximum difference:", np.max(np.abs(rho - rho_delta)))
-
-    return np.real(F)
+    # Enforce valid range [0, 1] by clipping
+    return np.clip(np.real(F), 0, 1)
 
 
 def fidelity_robust(rho, sigma):

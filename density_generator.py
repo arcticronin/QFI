@@ -199,7 +199,10 @@ class IsingQuantumState:
         rho_reduced = rho_qutip.ptrace(sel)
         rho_delta_reduced = rho_delta_qutip.ptrace(sel)
 
-        return rho_reduced.full(), rho_delta_reduced.full()  # Return as NumPy arrays
+        return (
+            rho_reduced.full(),
+            rho_delta_reduced.full(),
+        )  # Return as NumPy arrays -> mixed!
 
     def compute_qfi_with_sld(
         self, delta, d=1e-5
