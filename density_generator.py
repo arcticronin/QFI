@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.linalg import expm
 import pandas as pd
+import qutip
 
 
 class IsingQuantumState:
@@ -8,7 +9,7 @@ class IsingQuantumState:
     A class to represent the quantum state evolution under an n-qubit Ising-like Hamiltonian.
     """
 
-    def __init__(self, n, a_x, h_z):
+    def __init__(self, n, a_x, h_z, trace_out_index):
         """
         Initialize the system with given interaction and external field parameters.
 
@@ -21,6 +22,11 @@ class IsingQuantumState:
         self.a_x = a_x
         self.h_z = h_z
         self.paulis = self._pauli_matrices()
+
+        if trace_out_index == -1:
+            self.trace_out_index = n - 1
+        else:
+            self.trace_out_index = 0
 
     @staticmethod
     def _pauli_matrices():
@@ -163,3 +169,95 @@ class IsingQuantumState:
         mat = np.random.rand(dim, dim) + 1j * np.random.rand(dim, dim)
         mat = mat @ mat.conj().T  # Ensure Hermitian & positive semi-definite
         return mat / np.trace(mat)  # Normalize to ensure trace = 1
+
+    def generate_mixed(self, delta=0.01):
+        """
+        Generates a mixed state by tracing out one qubit.
+
+        Parameters:
+            delta (float): Perturbation size for the density matrix.
+            trace_out_index (int): Index of the qubit to trace out.
+
+        Returns:
+            rho (numpy.ndarray): Reduced density matrix after tracing out.
+            rho_delta (numpy.ndarray): Perturbed reduced density matrix.
+        """
+
+        # Generate perturbed density matrices
+        rho_0, rho_delta_0 = self.generate_density_matrices_with_perturbation(
+            delta=delta
+        )
+
+        # Convert to QuTiP objects (ensuring correct dimensions)
+        rho_qutip = qutip.Qobj(rho_0, dims=[[2] * self.n, [2] * self.n])
+        rho_delta_qutip = qutip.Qobj(rho_delta_0, dims=[[2] * self.n, [2] * self.n])
+
+        # Keep only the remaining qubits (remove `trace_out_index`)
+        sel = [i for i in range(self.n) if i != self.trace_out_index]
+
+        # Compute the reduced density matrices
+        rho_reduced = rho_qutip.ptrace(sel)
+        rho_delta_reduced = rho_delta_qutip.ptrace(sel)
+
+        return rho_reduced.full(), rho_delta_reduced.full()  # Return as NumPy arrays
+
+    def quantum_fisher_information(
+        self, delta, d=1e-5
+    ):  # this is the delta for the numerical derivative
+        """
+        Compute the Quantum Fisher Information (QFI) for a mixed quantum state.
+
+        Parameters:
+        rho  : ndarray
+            Density matrix of the quantum state (NxN, Hermitian, positive semi-definite, trace = 1)
+        drho : ndarray
+            Derivative of the density matrix with respect to the parameter (NxN)
+
+        Returns:
+        F_Q : float
+            Quantum Fisher Information (QFI) for the given state and its derivative
+        """
+        rho, _ = self.generate_mixed(delta=delta)
+        drho = self.compute_drho(d=d)
+
+        # Compute the eigenvalues and eigenvectors of the density matrix
+        eigenvalues, eigenvectors = np.linalg.eigh(rho)
+
+        # Initialize QFI sum
+        F_Q = 0
+
+        # Compute matrix elements of SLD in the eigenbasis of rho
+        for i in range(len(eigenvalues)):
+            for j in range(len(eigenvalues)):
+                if eigenvalues[i] + eigenvalues[j] > 1e-10:  # Avoid division by zero
+                    L_ij = (
+                        2
+                        * np.dot(
+                            eigenvectors[:, i].conj().T,
+                            np.dot(drho, eigenvectors[:, j]),
+                        )
+                        / (eigenvalues[i] + eigenvalues[j])
+                    )
+                    F_Q += np.abs(L_ij) ** 2 * eigenvalues[j]
+
+        return F_Q
+
+    def compute_drho(self, d=1e-5):
+        """
+        Compute the numerical derivative of the density matrix with respect to theta.
+
+        Parameters:
+        rho_func : function
+            Function that returns the density matrix as a function of theta.
+        theta : float
+            Parameter value at which to compute the derivative.
+        delta : float, optional
+            Small step size for numerical differentiation.
+
+        Returns:
+        drho : ndarray
+            Numerical derivative of rho with respect to theta.
+        """
+        _, rho_delta = self.generate_mixed(delta=d)
+        _, rho_m_delta = self.generate_mixed(delta=-d)
+        return (rho_delta - rho_m_delta) / (2 * d)

@@ -13,10 +13,21 @@ reload(classicalQFI)
 # pd.options.display.float_format = "{:,.3f}".format
 
 
-def simulation(n=5, a_x=1, h_z=0.1, delta=0.01, m=1, DEBUG=False) -> np.array:
+def simulation(
+    n=5,
+    a_x=1,
+    h_z=0.1,
+    delta=0.01,
+    m=1,
+    DEBUG=False,
+    trace_out_index=-1,
+    derivative_delta=1e-5,
+) -> np.array:
 
-    model = density_generator.IsingQuantumState(n=n, a_x=a_x, h_z=h_z)
-    rho_0, rho_delta_0 = model.generate_density_matrices_with_perturbation(delta=delta)
+    model = density_generator.IsingQuantumState(
+        n=n, a_x=a_x, h_z=h_z, trace_out_index=trace_out_index
+    )
+    # rho_0, rho_delta_0 = model.generate_density_matrices_with_perturbation(delta=delta)
 
     # plot_state_city(rho)
     # print(pd.DataFrame(rho))
@@ -24,21 +35,25 @@ def simulation(n=5, a_x=1, h_z=0.1, delta=0.01, m=1, DEBUG=False) -> np.array:
     # create a qutip object, inserting the density matrix
     # specify dims to make sure qutip knows the dimension of the system
     # (if not he thinks it is more than 2 state systemsand cannot take partial trace)
-    d = [[2 for i in range(n)], [2 for i in range(n)]]
+    # d = [[2 for i in range(n)], [2 for i in range(n)]]
 
-    rho_qutip = qutip.Qobj(rho_0, dims=d)
-    rho_delta_qutip = qutip.Qobj(rho_delta_0, dims=d)
+    # rho_qutip = qutip.Qobj(rho_0, dims=d)
+    # rho_delta_qutip = qutip.Qobj(rho_delta_0, dims=d)
 
     # trace out all qubits except the last one
-    rho = rho_qutip.ptrace(sel=list(range(n - 1))).full()
-    rho_delta = rho_delta_qutip.ptrace(sel=list(range(n - 1))).full()
+    # rho = rho_qutip.ptrace(sel=list(range(n - 1))).full()
+    # rho_delta = rho_delta_qutip.ptrace(sel=list(range(n - 1))).full()
+
+    rho, rho_delta = model.generate_mixed(delta=delta)
 
     ## Getting results from classical QFI
     results = classicalQFI.compute_tqfi_bounds(
         rho=rho, rho_delta=rho_delta, m=m, delta=delta
     )
+    qfi_from_SLD = model.quantum_fisher_information(delta=delta, d=derivative_delta)
+
     # append the true QFI to the results, taken using the pure states,
-    # before the partial trace
+    # before the partial trace (this idea was not good)
 
     ## Optional overlap with |00...00>
     # ket_0n = np.zeros(n-1, dtype=complex)
@@ -63,5 +78,6 @@ def simulation(n=5, a_x=1, h_z=0.1, delta=0.01, m=1, DEBUG=False) -> np.array:
     results["purity_rho_delta"] = np.trace(rho_delta @ rho_delta)
     results["rank_rho"] = np.linalg.matrix_rank(rho)
     results["rank_rho_delta"] = np.linalg.matrix_rank(rho_delta)
+    results["QFI_from_SLD"] = qfi_from_SLD
 
     return results
