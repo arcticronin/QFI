@@ -21,7 +21,7 @@ def simulation(
     m=1,
     DEBUG=False,
     trace_out_index=-1,
-    derivative_delta=1e-5,
+    derivative_delta=None,
 ) -> np.array:
 
     model = density_generator.IsingQuantumState(
@@ -50,6 +50,9 @@ def simulation(
     results = classicalQFI.compute_tqfi_bounds(
         rho=rho, rho_delta=rho_delta, m=m, delta=delta
     )
+
+    if derivative_delta is None:
+        derivative_delta = (delta / 1000,)
     qfi_from_SLD = model.compute_qfi_with_sld(delta=delta, d=derivative_delta)
 
     # append the true QFI to the results, taken using the pure states,

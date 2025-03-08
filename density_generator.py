@@ -20,7 +20,7 @@ class IsingQuantumState:
         """
         self.n = n
         self.a_x = a_x
-        self.h_z = h_z
+        self.h_z = h_z  ## it is my theta
         self.paulis = self._pauli_matrices()
 
         if trace_out_index == -1:
@@ -144,7 +144,7 @@ class IsingQuantumState:
         """
         rho = self.generate_density_matrix()
 
-        # Temporarily modify the field
+        # Temporarily modify the field (h_z + theta)
         original_hz = self.h_z
         self.h_z += delta
         rho_perturbed = self.generate_density_matrix()
@@ -222,7 +222,11 @@ class IsingQuantumState:
             Quantum Fisher Information (QFI) for the given state and its derivative
         """
         rho, _ = self.generate_mixed(delta=delta)
-        drho = self.compute_drho(d=d)
+        drho = self.compute_drho(
+            delta=delta, d=d
+        )  # Compute the derivative of the density matrix
+        # d rho(theta)
+        # d theta
 
         # Compute the eigenvalues and eigenvectors of the density matrix
         eigenvalues, eigenvectors = np.linalg.eigh(rho)
@@ -246,7 +250,7 @@ class IsingQuantumState:
 
         return F_Q
 
-    def compute_drho(self, d=1e-5):
+    def compute_drho(self, delta, d=1e-5):
         """
         Compute the numerical derivative of the density matrix with respect to theta.
 
@@ -262,6 +266,7 @@ class IsingQuantumState:
         drho : ndarray
             Numerical derivative of rho with respect to theta.
         """
-        _, rho_delta = self.generate_mixed(delta=d)
-        _, rho_m_delta = self.generate_mixed(delta=-d)
+        _, rho_delta = self.generate_mixed(delta=(delta + d))
+        _, rho_m_delta = self.generate_mixed(delta=(delta - d))
+
         return (rho_delta - rho_m_delta) / (2 * d)
