@@ -24,17 +24,25 @@ def get_lower_bound(n, a_x, delta, m, trace_out_index, derivative_delta):
 def get_best_lower_bound(
     n, a_x, delta, m, trace_out_index, derivative_delta, h_z_bounds=(0, 2.5)
 ):
-    # Generate the theta function dependent on h_z
     lower_bound_for_h_z = get_lower_bound(
         n, a_x, delta, m, trace_out_index, derivative_delta
     )
 
+    # Step 1: Optimize within bounds
     res = minimize_scalar(
-        lambda h_z: -lower_bound_for_h_z(h_z),  # Maximize by minimizing the negative
+        lambda h_z: -lower_bound_for_h_z(h_z),
         bounds=h_z_bounds,
         method="bounded",
     )
 
-    res.fun = -res.fun  # Restore the sign
+    # Restore the sign for the optimizer's result
+    res.fun = -res.fun
+
+    # Step 2: Compute boundary values
+    h_z_min = h_z_bounds[0]
+    h_z_max = h_z_bounds[1]
+
+    res.value_at_min = lower_bound_for_h_z(h_z_min)
+    res.value_at_max = lower_bound_for_h_z(h_z_max)
 
     return res
