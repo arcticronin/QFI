@@ -72,7 +72,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     )
 
     # Step 3: (optional) compute true fidelity
-    fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=True)
+    fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=False)
 
     # Step 4: Compute TQFI bounds using fidelity definitions (they are INVERTED!!)
     lower_tqfi = 8 * (1 - fidelity_truncated_generalized) / (delta**2)

@@ -76,13 +76,13 @@ def simulation(
         # print(f"rank of rho: {np.linalg.matrix_rank(rho)}")
         # print(f"rank of rho + delta: {np.linalg.matrix_rank(rho_delta)}")
         # put all of the above in a dictionary
-        print()
-    results["trace_rho"] = np.trace(rho)
-    results["trace_rho_delta"] = np.trace(rho_delta)
-    results["purity_rho"] = np.trace(rho @ rho)
-    results["purity_rho_delta"] = np.trace(rho_delta @ rho_delta)
-    results["rank_rho"] = np.linalg.matrix_rank(rho)
-    results["rank_rho_delta"] = np.linalg.matrix_rank(rho_delta)
+        results["trace_rho"] = np.trace(rho)
+        results["trace_rho_delta"] = np.trace(rho_delta)
+        results["purity_rho"] = np.trace(rho @ rho)
+        results["purity_rho_delta"] = np.trace(rho_delta @ rho_delta)
+        results["rank_rho"] = np.linalg.matrix_rank(rho)
+        results["rank_rho_delta"] = np.linalg.matrix_rank(rho_delta)
+
     results["QFI_from_SLD"] = qfi_from_SLD
 
     return results
