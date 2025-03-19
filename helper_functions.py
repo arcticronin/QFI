@@ -1,5 +1,17 @@
 import numpy as np
 from scipy.linalg import sqrtm, eigh, svd
+import qutip
+
+
+def trace_out(rho, trace_out_index):
+    dim = rho.shape[0]
+    n = int(np.log2(dim))
+    if any(i < 0 or i >= n for i in trace_out_index):
+        raise ValueError("Invalid trace_out_index: Indices must be in range [0, n-1]")
+
+    rho_qutip = qutip.Qobj(rho, dims=[[2] * n, [2] * n])
+    sel = [i for i in range(n) if i not in trace_out_index]
+    return rho_qutip.ptrace(sel).full()
 
 
 ## the Uhlmann is sqyared, the paper uses this
@@ -29,30 +41,71 @@ def trace_norm_rho_rho_delta(rho1, rho2):
     return np.sum(singular_vals)
 
 
+def compute_eigen_decomposition(rho):
+    """
+    Compute the eigenvalues and eigenvectors of a density matrix.
+
+    Args:
+        rho (np.ndarray): Density matrix.
+
+    Returns:
+        tuple: (eigvals, eigvecs) where:
+            eigvals (np.ndarray): Eigenvalues in descending order.
+            eigvecs (np.ndarray): Corresponding eigenvectors.
+    """
+    eigvals, eigvecs = np.linalg.eigh(rho)
+    idx = np.argsort(eigvals)[::-1]  # Sort in descending order
+    eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
+    return eigvals, eigvecs
+
+
 def truncate_density_matrix(rho, m, DEBUG=False):
     """
     Truncate a density matrix to its m-largest eigenvalues/eigenvectors.
+
+    Args:
+        rho (np.ndarray): Density matrix.
+        m (int): Number of largest eigenvalues to keep.
+        DEBUG (bool): If True, print truncated eigenvalues.
+
+    Returns:
+        np.ndarray: Truncated density matrix.
     """
-    # rho truncated
-    eigvals, eigvecs = np.linalg.eigh(rho)
+    eigvals, eigvecs = compute_eigen_decomposition(rho)
 
-    idx = np.argsort(eigvals)[::-1]  # Descending order (largest first)
-    eigvals, eigvecs = eigvals[idx], eigvecs[:, idx]
-
-    # Step 2: Truncate rho to m-largest eigenvalues/eigenvectors
+    # Keep only the m-largest eigenvalues and eigenvectors
     eigvals_trunc = eigvals[:m]
     eigvecs_trunc = eigvecs[:, :m]
 
-    # if DEBUG:
-    #    print(eigvals_trunc)
+    if DEBUG:
+        print("Truncated eigenvalues:", eigvals_trunc)
 
-    # Construct the truncated density matrix
+    # Reconstruct the truncated density matrix
     rho_trunc = sum(
         eigvals_trunc[i] * np.outer(eigvecs_trunc[:, i], eigvecs_trunc[:, i].conj())
         for i in range(m)
     )
 
     return rho_trunc
+
+
+def get_truncated_eigen_decomposition(rho, m):
+    """
+    Get the truncated eigenvalues and eigenvectors.
+
+    Args:
+        rho (np.ndarray): Density matrix.
+        m (int): Number of largest eigenvalues to keep.
+
+    Returns:
+        tuple: (eigvals_trunc, eigvecs_trunc) where:
+            eigvals_trunc (np.ndarray): Truncated eigenvalues.
+            eigvecs_trunc (np.ndarray): Truncated eigenvectors.
+    """
+    eigvals, eigvecs = compute_eigen_decomposition(rho)
+    eigvals_trunc = eigvals[:m]
+    eigvecs_trunc = eigvecs[:, :m]
+    return eigvals_trunc, eigvecs_trunc
 
 
 def is_density_matrix(mat):

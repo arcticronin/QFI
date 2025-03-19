@@ -6,7 +6,9 @@ import pandas as pd
 import numpy as np
 import classicalQFI
 import qutip
+import helper_functions
 
+reload(helper_functions)
 reload(density_generator)
 reload(classicalQFI)
 
@@ -82,6 +84,13 @@ def simulation(
         results["purity_rho_delta"] = np.trace(rho_delta @ rho_delta)
         results["rank_rho"] = np.linalg.matrix_rank(rho)
         results["rank_rho_delta"] = np.linalg.matrix_rank(rho_delta)
+
+        results["truncated_eigenvalues"] = (
+            helper_functions.get_truncated_eigen_decomposition(rho=rho, m=m)[0]
+        )
+        results["eigenvalues"] = helper_functions.compute_eigen_decomposition(rho=rho)[
+            0
+        ]
 
     results["QFI_from_SLD"] = qfi_from_SLD
 

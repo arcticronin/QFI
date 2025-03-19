@@ -12,8 +12,11 @@ then:
 - density_matrix_from_exp : generation of the density matrices 
 
 will be part of a future work:
-- qiskit_subroutines and sub2 : quantum circuits to get the fisher info (annex of the paper)
-- vqse.py : variational quantum eigensolver, that is also used in subroutine (must be fixed)
+- pennylane implementation fo the subroutines
 
 even later:
 - optimization best alpha to get the U that optimizes the fisher info
+
+deprecated, may be removed:
+- qiskit_subroutines and sub2 : quantum circuits to get the fisher info (annex of the paper)
+- vqse.py : variational quantum eigensolver, that is also used in subroutine (must be fixed)

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import expm
 import pandas as pd
-import qutip
+import helper_functions
 
 
 class IsingQuantumState:
@@ -24,9 +24,13 @@ class IsingQuantumState:
         self.paulis = self._pauli_matrices()
 
         if trace_out_index == -1:
-            self.trace_out_index = n - 1
+            print("index -1 : Tracing out the last qubit.")
+            self.trace_out_index = [n - 1]
         else:
-            self.trace_out_index = 0
+            for i in trace_out_index:
+                if i >= n or i < -1:
+                    raise ValueError("Invalid trace_out_index: Index out of bounds.")
+            self.trace_out_index = trace_out_index
 
     @staticmethod
     def _pauli_matrices():
@@ -172,11 +176,10 @@ class IsingQuantumState:
 
     def generate_mixed(self, delta=0.01):
         """
-        Generates a mixed state by tracing out one qubit.
+        Generates a mixed state by tracing out one or more qubits.
 
         Parameters:
             delta (float): Perturbation size for the density matrix.
-            trace_out_index (int): Index of the qubit to trace out.
 
         Returns:
             rho (numpy.ndarray): Reduced density matrix after tracing out.
@@ -188,21 +191,13 @@ class IsingQuantumState:
             delta=delta
         )
 
-        # Convert to QuTiP objects (ensuring correct dimensions)
-        rho_qutip = qutip.Qobj(rho_0, dims=[[2] * self.n, [2] * self.n])
-        rho_delta_qutip = qutip.Qobj(rho_delta_0, dims=[[2] * self.n, [2] * self.n])
+        # Reduce both matrices
+        rho_reduced = helper_functions.trace_out(rho_0, self.trace_out_index)
+        rho_delta_reduced = helper_functions.trace_out(
+            rho_delta_0, self.trace_out_index
+        )
 
-        # Keep only the remaining qubits (remove `trace_out_index`)
-        sel = [i for i in range(self.n) if i != self.trace_out_index]
-
-        # Compute the reduced density matrices
-        rho_reduced = rho_qutip.ptrace(sel)
-        rho_delta_reduced = rho_delta_qutip.ptrace(sel)
-
-        return (
-            rho_reduced.full(),
-            rho_delta_reduced.full(),
-        )  # Return as NumPy arrays -> mixed!
+        return rho_reduced, rho_delta_reduced
 
     def compute_qfi_with_sld(
         self, delta, d=1e-5
