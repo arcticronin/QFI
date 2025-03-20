@@ -9,7 +9,7 @@ class IsingQuantumState:
     A class to represent the quantum state evolution under an n-qubit Ising-like Hamiltonian.
     """
 
-    def __init__(self, n, a_x, h_z, trace_out_index):
+    def __init__(self, n, a_x, h_z, trace_out_index, initial_state="0"):
         """
         Initialize the system with given interaction and external field parameters.
 
@@ -23,6 +23,21 @@ class IsingQuantumState:
         self.h_z = h_z  ## it is my theta
         self.paulis = self._pauli_matrices()
 
+        # Define initial state |0...0> in computational basis
+        # For n qubits, |0...0> is dimension 2^n with a 1 in the first component.
+        dim = 2**self.n
+        if self.initial_state == "0":
+            self.initial_state = np.zeros(dim, dtype=complex)
+            self.initial_state[0] = 1.0  # this is |0...0>
+            print("Initial state: |0...0>")
+        # Create hadamard state, a full superposition state
+        elif self.initial_state == "H":
+            self.initial_state = np.ones(dim, dtype=complex) / np.sqrt(dim)
+            print("Initial state: Hadamard state")
+        else:
+            raise ValueError("Invalid initial state. Choose '0' or 'H'.")
+
+        # Define the qubits to trace out
         if trace_out_index == -1:
             print("index -1 : Tracing out the last qubit.")
             self.trace_out_index = [n - 1]
@@ -123,14 +138,8 @@ class IsingQuantumState:
         # Unitary evolution operator
         U = expm(-1j * H)
 
-        # Define initial state |0...0> in computational basis
-        # For n qubits, |0...0> is dimension 2^n with a 1 in the first component.
-        dim = 2**self.n
-        ket_0n = np.zeros(dim, dtype=complex)
-        ket_0n[0] = 1.0  # this is |0...0>
-
         # Apply U to |0...0>
-        psi = U @ ket_0n
+        psi = U @ self.initial_state
 
         # Construct the density matrix
         rho = np.outer(psi, np.conj(psi))
