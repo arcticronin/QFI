@@ -9,7 +9,16 @@ class IsingQuantumState:
     A class to represent the quantum state evolution under an n-qubit Ising-like Hamiltonian.
     """
 
-    def __init__(self, n, a_x, h_z, trace_out_index, initial_state="0"):
+    def __init__(
+        self,
+        n,
+        a_x,
+        h_z,
+        trace_out_index,
+        initial_state="0",
+        DEBUG=False,
+        initial_matrix=None,
+    ):
         """
         Initialize the system with given interaction and external field parameters.
 
@@ -22,18 +31,32 @@ class IsingQuantumState:
         self.a_x = a_x
         self.h_z = h_z  ## it is my theta
         self.paulis = self._pauli_matrices()
+        self.initial_matrix = initial_matrix
 
         # Define initial state |0...0> in computational basis
         # For n qubits, |0...0> is dimension 2^n with a 1 in the first component.
         dim = 2**self.n
-        if self.initial_state == "0":
+        if DEBUG == True:
+            print("Dimension of the Hilbert space:", dim)
+            print(
+                f"initial state type : {type(initial_state)}\ninitial_state: {initial_state}"
+            )
+        if isinstance(initial_state, np.ndarray):
+            if initial_state.shape == (dim,):
+                self.initial_state = initial_state
+                if DEBUG == True:
+                    print("Initial state: Custom state")
+        elif initial_state == "0":
             self.initial_state = np.zeros(dim, dtype=complex)
             self.initial_state[0] = 1.0  # this is |0...0>
-            print("Initial state: |0...0>")
+            if DEBUG == True:
+                print("Initial state: |0...0>")
         # Create hadamard state, a full superposition state
-        elif self.initial_state == "H":
+        elif initial_state == "H":
             self.initial_state = np.ones(dim, dtype=complex) / np.sqrt(dim)
-            print("Initial state: Hadamard state")
+            if DEBUG == True:
+                print("Initial state: Hadamard state")
+
         else:
             raise ValueError("Invalid initial state. Choose '0' or 'H'.")
 
@@ -138,8 +161,11 @@ class IsingQuantumState:
         # Unitary evolution operator
         U = expm(-1j * H)
 
-        # Apply U to |0...0>
-        psi = U @ self.initial_state
+        # Apply U to the initial state
+        if self.initial_matrix is not None:
+            psi = U @ self.initial_matrix
+        else:
+            psi = U @ self.initial_state
 
         # Construct the density matrix
         rho = np.outer(psi, np.conj(psi))

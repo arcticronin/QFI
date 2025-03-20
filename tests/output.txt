@@ -1,0 +1,142 @@
+n = 7, trace_out = [0]
+initial state = 0
+mean    1.847899
+std     0.111177
+min     1.610152
+max     1.999926
+starting simulation with n=7
+Initial state: Hadamard state
+n = 7, trace_out = [0]
+initial state = H
+mean    1.093590
+std     0.130715
+min     1.000000
+max     1.438790
+starting simulation with n=7
+Initial state: |0...0>
+n = 7, trace_out = [1]
+initial state = 0
+mean    1.748564
+std     0.165356
+min     1.432821
+max     1.941702
+starting simulation with n=7
+Initial state: Hadamard state
+n = 7, trace_out = [1]
+initial state = H
+mean    1.157523
+std     0.165441
+min     1.000000
+max     1.519151
+starting simulation with n=7
+Initial state: |0...0>
+n = 7, trace_out = [3]
+initial state = 0
+mean    1.818545
+std     0.114858
+min     1.569649
+max     1.941715
+starting simulation with n=7
+Initial state: Hadamard state
+n = 7, trace_out = [3]
+initial state = H
+mean    1.117640
+std     0.140639
+min     1.000000
+max     1.441022
+starting simulation with n=8
+Initial state: |0...0>
+n = 8, trace_out = [0, 1]
+initial state = 0
+mean    1.874953
+std     0.118214
+min     1.704774
+max     2.038033
+starting simulation with n=8
+Initial state: Hadamard state
+n = 8, trace_out = [0, 1]
+initial state = H
+mean    1.071400
+std     0.095233
+min     1.000000
+max     1.327443
+starting simulation with n=8
+Initial state: |0...0>
+n = 8, trace_out = [0, 3]
+initial state = 0
+mean    3.164763
+std     0.402903
+min     2.212476
+max     3.528730
+starting simulation with n=8
+Initial state: Hadamard state
+n = 8, trace_out = [0, 3]
+initial state = H
+mean    1.260326
+std     0.289625
+min     1.000000
+max     2.011260
+starting simulation with n=8
+Initial state: |0...0>
+n = 8, trace_out = [3, 4]
+initial state = 0
+mean    2.657792
+std     0.241845
+min     2.169290
+max     2.906222
+starting simulation with n=8
+Initial state: Hadamard state
+n = 8, trace_out = [3, 4]
+initial state = H
+mean    1.170254
+std     0.182840
+min     1.000000
+max     1.672550
+starting simulation with n=9
+Initial state: |0...0>
+n = 9, trace_out = [0, 1, 2]
+initial state = 0
+mean    1.937651
+std     0.102584
+min     1.704994
+max     2.039736
+starting simulation with n=9
+Initial state: Hadamard state
+n = 9, trace_out = [0, 1, 2]
+initial state = H
+mean    1.077986
+std     0.087368
+min     1.000000
+max     1.314887
+starting simulation with n=9
+Initial state: |0...0>
+n = 9, trace_out = [0, 4, 8]
+initial state = 0
+mean    5.914139
+std     1.017855
+min     3.704338
+max     7.247581
+starting simulation with n=9
+Initial state: Hadamard state
+n = 9, trace_out = [0, 4, 8]
+initial state = H
+mean    1.361477
+std     0.541438
+min     1.000000
+max     2.912429
+starting simulation with n=9
+Initial state: |0...0>
+n = 9, trace_out = [2, 4, 6]
+initial state = 0
+mean    5.385246
+std     1.151828
+min     3.268938
+max     6.962739
+starting simulation with n=9
+Initial state: Hadamard state
+n = 9, trace_out = [2, 4, 6]
+initial state = H
+mean    1.391357
+std     0.515576
+min     1.000000
+max     2.559299

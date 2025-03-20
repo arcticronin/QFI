@@ -7,7 +7,9 @@ def trace_out(rho, trace_out_index):
     dim = rho.shape[0]
     n = int(np.log2(dim))
     if any(i < 0 or i >= n for i in trace_out_index):
-        raise ValueError("Invalid trace_out_index: Indices must be in range [0, n-1]")
+        raise ValueError(
+            f"Invalid trace_out_index: Indices must be in range [0, n-1], n = {n}, trace_out_index = {trace_out_index}"
+        )
 
     rho_qutip = qutip.Qobj(rho, dims=[[2] * n, [2] * n])
     sel = [i for i in range(n) if i not in trace_out_index]
