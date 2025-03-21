@@ -188,10 +188,10 @@ def random_haar_ket(n):
     Returns:
         numpy.ndarray: A normalized complex vector (ket) of dimension n.
     """
-    # Step 1: Generate random complex vector with normally distributed components
-    z = np.random.randn(n) + 1j * np.random.randn(n)
 
-    # Step 2: Normalize the vector to get a ket
+    # random complex vector with normally distributed components
+    z = np.random.randn(n) + 1j * np.random.randn(n)
+    # morlmalize
     ket = z / np.linalg.norm(z)
 
     return ket

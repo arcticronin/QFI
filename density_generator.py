@@ -14,7 +14,7 @@ class IsingQuantumState:
         n,
         a_x,
         h_z,
-        trace_out_index,
+        # trace_out_index,
         initial_state="0",
         DEBUG=False,
     ):
@@ -25,7 +25,7 @@ class IsingQuantumState:
         - n: Number of qubits.
         - a_x: Coupling coefficient for the Ising interaction term.
         - h_z: Coefficient for the external field in the Z direction.
-        - trace_out_index: Indices of the qubits to trace out.
+        # - trace_out_index: Indices of the qubits to trace out.
         - initial_state: Initial state or density matrix.
             - "0" -> Computational basis state |0...0>
             - "H" -> Uniform Hadamard state
@@ -89,18 +89,18 @@ class IsingQuantumState:
             raise ValueError("Initial matrix is not Hermitian.")
         # if not np.all(np.linalg.eigvals(self.initial_rho) >= 0):
         #    raise ValueError("Initial matrix is not positive semidefinite.")
-        # if not np.isclose(np.trace(self.initial_rho), 1):
-        #    raise ValueError("Initial matrix trace is not 1.")
+        if not np.isclose(np.trace(self.initial_rho), 1):
+            raise ValueError("Initial matrix trace is not 1.")
 
-        # ---------- Handle trace out indices ----------
-        if trace_out_index == -1:
-            self.trace_out_index = [n - 1]
-            if DEBUG:
-                print("Tracing out the last qubit.")
-        else:
-            if any(not (0 <= i < n) for i in trace_out_index):
-                raise ValueError("Invalid trace_out_index: Index out of bounds.")
-            self.trace_out_index = trace_out_index
+        # # ---------- Handle trace out indices ----------
+        # if trace_out_index == -1:
+        #     self.trace_out_index = [n - 1]
+        #     if DEBUG:
+        #         print("Tracing out the last qubit.")
+        # else:
+        #     if any(not (0 <= i < n) for i in trace_out_index):
+        #         raise ValueError("Invalid trace_out_index: Index out of bounds.")
+        #     self.trace_out_index = trace_out_index
 
     def _pauli_matrices(self):
         """Define Pauli matrices."""
@@ -217,46 +217,46 @@ class IsingQuantumState:
 
         return rho, rho_perturbed
 
-    @staticmethod
-    def generate_random_positive_density_matrix(n):
-        """
-        Generates a random valid density matrix for an n-qubit system.
+    # @staticmethod
+    # def generate_random_positive_density_matrix(n):
+    #     """
+    #     Generates a random valid density matrix for an n-qubit system.
 
-        Parameters:
-        - n: Number of qubits.
+    #     Parameters:
+    #     - n: Number of qubits.
 
-        Returns:
-        - rho: A random valid density matrix (Hermitian, PSD, trace = 1).
-        """
-        dim = 2**n  # Dimension of the Hilbert space
-        mat = np.random.rand(dim, dim) + 1j * np.random.rand(dim, dim)
-        mat = mat @ mat.conj().T  # Ensure Hermitian & positive semi-definite
-        return mat / np.trace(mat)  # Normalize to ensure trace = 1
+    #     Returns:
+    #     - rho: A random valid density matrix (Hermitian, PSD, trace = 1).
+    #     """
+    #     dim = 2**n  # Dimension of the Hilbert space
+    #     mat = np.random.rand(dim, dim) + 1j * np.random.rand(dim, dim)
+    #     mat = mat @ mat.conj().T  # Ensure Hermitian & positive semi-definite
+    #     return mat / np.trace(mat)  # Normalize to ensure trace = 1
 
-    def generate_mixed(self, delta=0.01):
-        """
-        Generates a mixed state by tracing out one or more qubits.
+    # def generate_mixed(self, delta=0.01):
+    #     """
+    #     Generates a mixed state by tracing out one or more qubits.
 
-        Parameters:
-            delta (float): Perturbation size for the density matrix.
+    #     Parameters:
+    #         delta (float): Perturbation size for the density matrix.
 
-        Returns:
-            rho (numpy.ndarray): Reduced density matrix after tracing out.
-            rho_delta (numpy.ndarray): Perturbed reduced density matrix.
-        """
+    #     Returns:
+    #         rho (numpy.ndarray): Reduced density matrix after tracing out.
+    #         rho_delta (numpy.ndarray): Perturbed reduced density matrix.
+    #     """
 
-        # Generate perturbed density matrices
-        rho_0, rho_delta_0 = self.generate_density_matrices_with_perturbation(
-            delta=delta
-        )
+    #     # Generate perturbed density matrices
+    #     rho_0, rho_delta_0 = self.generate_density_matrices_with_perturbation(
+    #         delta=delta
+    #     )
 
-        # Reduce both matrices
-        rho_reduced = helper_functions.trace_out(rho_0, self.trace_out_index)
-        rho_delta_reduced = helper_functions.trace_out(
-            rho_delta_0, self.trace_out_index
-        )
+    #     # Reduce both matrices
+    #     rho_reduced = helper_functions.trace_out(rho_0, self.trace_out_index)
+    #     rho_delta_reduced = helper_functions.trace_out(
+    #         rho_delta_0, self.trace_out_index
+    #     )
 
-        return rho_reduced, rho_delta_reduced
+    #     return rho_reduced, rho_delta_reduced
 
     def compute_qfi_with_sld(
         self, delta, d=1e-5
@@ -275,7 +275,9 @@ class IsingQuantumState:
         F_Q : float
             Quantum Fisher Information (QFI) for the given state and its derivative
         """
-        rho, _ = self.generate_mixed(delta=delta)
+
+        rho = self.generate_density_matrix()
+
         drho = self.compute_drho(
             delta=delta, d=d
         )  # Compute the derivative of the density matrix
@@ -320,7 +322,14 @@ class IsingQuantumState:
         drho : ndarray
             Numerical derivative of rho with respect to theta.
         """
-        _, rho_delta = self.generate_mixed(delta=(delta + d))
-        _, rho_m_delta = self.generate_mixed(delta=(delta - d))
+        # Temporarily modify the field (h_z + theta)
+        original_hz = self.h_z
+
+        self.h_z -= delta
+        rho_m_delta, rho_delta = self.generate_density_matrices_with_perturbation(
+            2 * delta
+        )
+        # Restore original h_z
+        self.h_z = original_hz
 
         return (rho_delta - rho_m_delta) / (2 * d)
