@@ -17,7 +17,6 @@ class IsingQuantumState:
         trace_out_index,
         initial_state="0",
         DEBUG=False,
-        initial_matrix=None,
     ):
         """
         Initialize the system with given interaction and external field parameters.
@@ -26,62 +25,85 @@ class IsingQuantumState:
         - n: Number of qubits.
         - a_x: Coupling coefficient for the Ising interaction term.
         - h_z: Coefficient for the external field in the Z direction.
+        - trace_out_index: Indices of the qubits to trace out.
+        - initial_state: Initial state or density matrix.
+            - "0" -> Computational basis state |0...0>
+            - "H" -> Uniform Hadamard state
+            - ndarray -> Custom state vector or density matrix
         """
         self.n = n
         self.a_x = a_x
-        self.h_z = h_z  ## it is my theta
+        self.h_z = h_z
         self.paulis = self._pauli_matrices()
-        self.initial_matrix = initial_matrix
 
-        # Define initial state |0...0> in computational basis
-        # For n qubits, |0...0> is dimension 2^n with a 1 in the first component.
-        dim = 2**self.n
-        if DEBUG == True:
-            print("Dimension of the Hilbert space:", dim)
+        dim = 2**n
+
+        if DEBUG:
+            print(f"Dimension of the Hilbert space: {dim}")
             print(
-                f"initial state type : {type(initial_state)}\ninitial_state: {initial_state}"
+                f"Initial state type: {type(initial_state)} | initial_state: {initial_state}"
             )
-            print(
-                f"initial matrix type : {type(initial_matrix)}\ninitial_matrix shape: {initial_matrix.shape}"
-            )
+
+        # ---------- Handle state vector or density matrix ----------
         if isinstance(initial_state, np.ndarray):
             if initial_state.shape == (dim,):
-                self.initial_state = initial_state
-                if DEBUG == True:
-                    print("Initial state: Custom state")
+                # State vector → Convert to density matrix
+                self.initial_rho = np.outer(initial_state, initial_state.conj())
+                if DEBUG:
+                    print(
+                        "Initial state provided as state vector -> Converted to density matrix."
+                    )
+            elif initial_state.shape == (dim, dim):
+                self.initial_rho = initial_state
+                if DEBUG:
+                    print("Initial state provided as density matrix.")
+            else:
+                raise ValueError(f"Invalid initial state shape: {initial_state.shape}")
+
         elif initial_state == "0":
-            self.initial_state = np.zeros(dim, dtype=complex)
-            self.initial_state[0] = 1.0  # this is |0...0>
-            if DEBUG == True:
-                print("Initial state: |0...0>")
-        # Create hadamard state, a full superposition state
+            # Computational basis state |0...0>
+            state = np.zeros(dim, dtype=complex)
+            state[0] = 1.0
+            self.initial_rho = np.outer(state, state.conj())
+            if DEBUG:
+                print("Initial state: |0...0> (converted to density matrix)")
+
         elif initial_state == "H":
-            self.initial_state = np.ones(dim, dtype=complex) / np.sqrt(dim)
-            if DEBUG == True:
-                print("Initial state: Hadamard state")
-        elif initial_state is None:
-            if initial_matrix is None:
-                raise ValueError("No initial state or matrix provided")
+            # Hadamard state (uniform superposition)
+            state = np.ones(dim, dtype=complex) / np.sqrt(dim)
+            self.initial_rho = np.outer(state, state.conj())
+            if DEBUG:
+                print("Initial state: Hadamard state (converted to density matrix)")
+
         else:
             raise ValueError(
-                "Invalid initial state. Choose '0', 'H', or provide a custom state."
+                "Invalid initial state. Choose '0', 'H', or provide a valid custom state or matrix."
             )
 
-        # Define the qubits to trace out
+        # ---------- Validate density matrix ----------
+        if self.initial_rho.shape != (dim, dim):
+            raise ValueError(
+                f"Invalid initial matrix shape: {self.initial_rho.shape}, expected ({dim}, {dim})"
+            )
+        if not np.allclose(self.initial_rho, self.initial_rho.conj().T):
+            raise ValueError("Initial matrix is not Hermitian.")
+        # if not np.all(np.linalg.eigvals(self.initial_rho) >= 0):
+        #    raise ValueError("Initial matrix is not positive semidefinite.")
+        # if not np.isclose(np.trace(self.initial_rho), 1):
+        #    raise ValueError("Initial matrix trace is not 1.")
+
+        # ---------- Handle trace out indices ----------
         if trace_out_index == -1:
-            print("index -1 : Tracing out the last qubit.")
             self.trace_out_index = [n - 1]
+            if DEBUG:
+                print("Tracing out the last qubit.")
         else:
-            for i in trace_out_index:
-                if i >= n or i < -1:
-                    raise ValueError("Invalid trace_out_index: Index out of bounds.")
+            if any(not (0 <= i < n) for i in trace_out_index):
+                raise ValueError("Invalid trace_out_index: Index out of bounds.")
             self.trace_out_index = trace_out_index
 
-    @staticmethod
-    def _pauli_matrices():
-        """
-        Returns a dictionary of single-qubit Pauli matrices.
-        """
+    def _pauli_matrices(self):
+        """Define Pauli matrices."""
         I = np.array([[1, 0], [0, 1]], dtype=complex)
         X = np.array([[0, 1], [1, 0]], dtype=complex)
         Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
@@ -156,11 +178,10 @@ class IsingQuantumState:
 
     def generate_density_matrix(self):
         """
-        Generates the density matrix rho for the system evolved under the Hamiltonian
-        from the initial state |0...0> (n zeros).
+        Evolves the initial density matrix under the Hamiltonian using unitary evolution.
 
         Returns:
-        - rho: The 2^n-dimensional density matrix as a numpy array.
+        - rho: The evolved 2^n-dimensional density matrix as a numpy array.
         """
         # Construct the Hamiltonian
         H = self._construct_hamiltonian()
@@ -168,14 +189,10 @@ class IsingQuantumState:
         # Unitary evolution operator
         U = expm(-1j * H)
 
-        # Apply U to the initial state
-        if self.initial_matrix is not None:
-            psi = U @ self.initial_matrix
-        else:
-            psi = U @ self.initial_state
+        # Evolve the density matrix:
+        # ρ(t) = U ρ(0) U†
+        rho = U @ self.initial_rho @ U.conj().T
 
-        # Construct the density matrix
-        rho = np.outer(psi, np.conj(psi))
         return rho
 
     def generate_density_matrices_with_perturbation(self, delta=0.01):

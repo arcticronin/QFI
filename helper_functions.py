@@ -175,6 +175,12 @@ def fidelity_robust(rho, sigma):
 def random_haar_ket(n):
     """
     Generate a random ket of size n, distributed according to the Haar measure.
+    A Haar ket is a pure quantum state (a normalized complex vector) that is uniformly distributed according to the
+    Haar measure over the complex unit sphere in a Hilbert space.
+
+    Idea: take both real and im part from a normal distribution, the joint probability distribution of the components becomes rotationally invariant under unitary transformations due to the properties of the normal distribution.
+
+    The normalization ensures that the ket lies on the unit sphere, while the rotational invariance ensures the sampling is uniform according to the Haar measure.
 
     Args:
         n (int): Dimension of the ket.
