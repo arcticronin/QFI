@@ -170,3 +170,22 @@ def fidelity_robust(rho, sigma):
     F = np.trace(X)
     # Enforce valid range [0, 1] by clipping
     return np.clip(F**2, 0, 1)
+
+
+def random_haar_ket(n):
+    """
+    Generate a random ket of size n, distributed according to the Haar measure.
+
+    Args:
+        n (int): Dimension of the ket.
+
+    Returns:
+        numpy.ndarray: A normalized complex vector (ket) of dimension n.
+    """
+    # Step 1: Generate random complex vector with normally distributed components
+    z = np.random.randn(n) + 1j * np.random.randn(n)
+
+    # Step 2: Normalize the vector to get a ket
+    ket = z / np.linalg.norm(z)
+
+    return ket

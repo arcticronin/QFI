@@ -41,6 +41,9 @@ class IsingQuantumState:
             print(
                 f"initial state type : {type(initial_state)}\ninitial_state: {initial_state}"
             )
+            print(
+                f"initial matrix type : {type(initial_matrix)}\ninitial_matrix shape: {initial_matrix.shape}"
+            )
         if isinstance(initial_state, np.ndarray):
             if initial_state.shape == (dim,):
                 self.initial_state = initial_state
@@ -56,9 +59,13 @@ class IsingQuantumState:
             self.initial_state = np.ones(dim, dtype=complex) / np.sqrt(dim)
             if DEBUG == True:
                 print("Initial state: Hadamard state")
-
+        elif initial_state is None:
+            if initial_matrix is None:
+                raise ValueError("No initial state or matrix provided")
         else:
-            raise ValueError("Invalid initial state. Choose '0' or 'H'.")
+            raise ValueError(
+                "Invalid initial state. Choose '0', 'H', or provide a custom state."
+            )
 
         # Define the qubits to trace out
         if trace_out_index == -1:
