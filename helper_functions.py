@@ -195,3 +195,15 @@ def random_haar_ket(n):
     ket = z / np.linalg.norm(z)
 
     return ket
+
+
+def random_mixed_density_matrix(N, n):
+    print("Generating random mixed density matrix")
+    # Generate random initial state
+    ket = random_haar_ket(2**N)
+
+    rho = np.outer(ket, np.conj(ket))
+
+    trace_out_index = np.random.choice(range(N), size=N - n, replace=False)
+
+    return trace_out(rho=rho, trace_out_index=trace_out_index)

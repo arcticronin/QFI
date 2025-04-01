@@ -326,6 +326,7 @@ class IsingQuantumState:
         original_hz = self.h_z
 
         self.h_z -= delta
+
         rho_m_delta, rho_delta = self.generate_density_matrices_with_perturbation(
             2 * delta
         )

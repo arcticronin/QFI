@@ -26,6 +26,19 @@ def simulation(
     DEBUG=False,
     derivative_delta=1e-3,
 ) -> np.array:
+    """ "
+    Simulate the quantum state evolution and compute the QFI bounds.
+    params:
+    N: number of qubits
+    n: ending number of qubits (we will trace out N - n qubits)
+    a_x: coupling coefficient for the Ising interaction term
+    h_z: perturbation strength
+    delta: "error" state difference
+    m: number of largest eigenvalues to keep
+    initial_state: initial state of the system (matrix or state vector)
+    DEBUG: print debug information
+    derivative_delta: step size for SLD
+    """
 
     if initial_state is None:
         if DEBUG:
