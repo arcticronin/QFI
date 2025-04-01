@@ -68,7 +68,7 @@ def simulation(
     )
 
     if derivative_delta is None:
-        derivative_delta = (delta / 1000,)
+        derivative_delta = (delta / 100,)
 
     # this method is not parameter agnostic, so it is not into classicalQFI
     qfi_from_SLD = model.compute_qfi_with_sld(delta=delta, d=derivative_delta)
