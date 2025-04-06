@@ -16,31 +16,27 @@ def trace_out(rho, trace_out_index):
     return rho_qutip.ptrace(sel).full()
 
 
-## the Uhlmann is sqyared, the paper uses this
-def trace_norm_rho_rho_delta(rho1, rho2):
+def uhlmann_fidelity_root(rho1, rho2):
     """
-    Computes the trace norm || sqrt(rho1) sqrt(rho2) ||_1
-    for two density matrices rho_sigma, rho_(sigma + delta).
+    Computes the Uhlmann fidelity (non-squared) between two density matrices:
+        F(ρ, σ) = || sqrt(ρ) sqrt(σ) ||_1
+
+    This is the trace norm of the product of the square roots of ρ and σ,
+    which is the quantity used in fidelity-based QFI bounds (e.g. Eq. 6, 12 in the paper).
+
+    Parameters:
+        rho1: First density matrix (e.g. ρ_θ)
+        rho2: Second density matrix (e.g. ρ_{θ+δ})
+
+    Returns:
+        Uhlmann fidelity (not squared): a real number in [0, 1]
     """
-    # 1) Compute the principal square root of rho1 and rho2
-
-    # print("rho.dtype =", rho1.dtype)
-    # print("rho_delta.dtype =", rho2.dtype)
-
     sqrt_rho1 = sqrtm(rho1).astype(np.complex128)
     sqrt_rho2 = sqrtm(rho2).astype(np.complex128)
-
-    # print("rho.dtype =", sqrt_rho1.dtype)
-    # print("rho_delta.dtype =", sqrt_rho2.dtype)
-
-    # 2) Form the product sqrt(rho1)*sqrt(rho2)
     product = sqrt_rho1 @ sqrt_rho2
 
-    # 3) Compute all singular values (σ_i)
     singular_vals = np.linalg.svd(product, compute_uv=False)
-
-    # 4) The trace norm is the sum of the singular values
-    return np.sum(singular_vals)
+    return np.real(np.sum(singular_vals))
 
 
 def compute_eigen_decomposition(rho):

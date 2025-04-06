@@ -5,107 +5,112 @@ import helper_functions
 reload(helper_functions)
 
 
-# eq (6)
+# Eq. (6) — Induced bound on QFI from a fidelity-like quantity f(ρ_θ, ρ_θ+δ)
 def I_induced_bound(f_theta_theta_delta, delta):
-    return (8 * (1 - f_theta_theta_delta)) / (delta**2)
+    return 8 * (1 - f_theta_theta_delta) / (delta**2)
 
 
+# Eq. (13) — Subfidelity E(ρ, σ)
 def E_subfidelity(rho, sigma):
-    trace_rho_theta = np.trace(rho @ sigma)
-    E = trace_rho_theta + np.sqrt(
-        2 * (((trace_rho_theta) ** 2) - np.trace(rho @ sigma @ rho @ sigma))
-    )
-    return E
+    trace_rho_sigma = np.trace(rho @ sigma)
+    term = trace_rho_sigma**2 - np.trace(rho @ sigma @ rho @ sigma)
+    return trace_rho_sigma + np.sqrt(2 * term)
 
 
+# Eq. (14) — Superfidelity R(ρ, σ)
 def R_superfidelity(rho, sigma):
-    R = np.trace(rho @ sigma) + np.sqrt(
-        (1 - np.trace(rho @ rho)) * (1 - np.trace(sigma @ sigma))
+    tr_rho_sigma = np.trace(rho @ sigma)
+    tr_rho2 = np.trace(rho @ rho)
+    tr_sigma2 = np.trace(sigma @ sigma)
+
+    root_term = (1 - tr_rho2) * (1 - tr_sigma2)
+    root_term = max(root_term, 0)  # Ensure non-negative for numerical safety
+
+    return np.real(tr_rho_sigma + np.sqrt(root_term))
+
+
+# clean version, but try to usse just real to avoid numerical issues
+def R_superfidelity_clean(rho, sigma):
+    trace_rho_sigma = np.trace(rho @ sigma)
+    trace_rho_squared = np.trace(rho @ rho)
+    trace_sigma_squared = np.trace(sigma @ sigma)
+    return trace_rho_sigma + np.sqrt(
+        (1 - trace_rho_squared) * (1 - trace_sigma_squared)
     )
-    return R
+
+
+# √E(ρ, σ) — used in Eq. (15) as the lower bound of fidelity
+def sqrt_E_subfidelity(rho, sigma):
+    return np.sqrt(E_subfidelity(rho, sigma))
+
+
+# √R(ρ, σ) — used in Eq. (15) as the upper bound of fidelity
+def sqrt_R_superfidelity(rho, sigma):
+    return np.sqrt(R_superfidelity(rho, sigma))
 
 
 def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     """
-    Compute the Truncated Quantum Fisher Information (TQFI) bounds.
-
-    This method follows the approach from the theoretical framework:
-    1. Perform eigenvalue decomposition of rho.
-    2. Truncate to the m-largest eigenvalues (principal components).
-    3. Compute truncated and generalized fidelities (L R).
-    4. Estimate the lower and upper bounds of TQFI.
+    Compute the Truncated Quantum Fisher Information (TQFI) and SSQFI bounds.
 
     Parameters:
-    - rho: Density matrix at parameter theta. ("probe" state)
-    - rho_delta: Density matrix at parameter theta + delta. ("error" state)
-    - m: Truncation parameter for principal components.
-    - delta: Small shift in parameter for derivative approximation.
+    - rho: Density matrix at parameter theta (the probe state).
+    - rho_delta: Density matrix at parameter theta + delta (the error state).
+    - m: Number of principal components to keep.
+    - delta: Small shift in the parameter theta.
+    - DEBUG: Whether to print debug information.
 
     Returns:
-    - results dictionary containing
-        - lower_tqfi: Lower bound of TQFI.
-        - upper_tqfi: Upper bound of TQFI.
+    - Dictionary with:
         - fidelity_truncated
-        - fidelity_generalized
-        - true_fidelity
-        - true_qfi
-
-
+        - fidelity_truncated_generalized
+        - lower_tqfi, upper_tqfi
+        - fidelity_true, qfi_fidelity
+        - sub_qfi_bound (√R)
+        - super_qfi_bound (√E)
+        - H_delta (max of two lower bounds)
+        - J_delta (min of two upper bounds)
     """
-    # Step 1: Eigenvalue decomposition (linalg.eigh returns them in ascending order)
-
-    # rho truncated
+    # Step 1: Truncate density matrices
     rho_trunc = helper_functions.truncate_density_matrix(rho, m)
-    #
     rho_delta_trunc = helper_functions.truncate_density_matrix(rho_delta, m)
 
-    # Step 2: Compute truncated fidelities
-
-    # F - Fidelity between truncated rho and truncated rho_delta
-    fidelity_truncated = helper_functions.trace_norm_rho_rho_delta(
+    # Step 2: Compute truncated and generalized fidelities
+    fidelity_truncated = helper_functions.uhlmann_fidelity_root(
         rho_trunc, rho_delta_trunc
     )
-
-    # F* - Generalized fidelity incorporates truncation errors
     fidelity_truncated_generalized = fidelity_truncated + np.sqrt(
         max(0, (1 - np.trace(rho_trunc)) * (1 - np.trace(rho_delta_trunc)))
     )
 
-    # Step 3: (optional) compute true fidelity
-    fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=False)
+    # Step 3: Compute true fidelity (for comparison)
+    fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=DEBUG)
 
-    # Step 4: Compute TQFI bounds using fidelity definitions (they are INVERTED!!)
-    lower_tqfi = 8 * (1 - fidelity_truncated_generalized) / (delta**2)
-    upper_tqfi = 8 * (1 - fidelity_truncated) / (delta**2)
+    # Step 4: TQFI bounds from Eq. (6)
+    lower_tqfi = I_induced_bound(fidelity_truncated_generalized, delta)
+    upper_tqfi = I_induced_bound(fidelity_truncated, delta)
+    qfi_fidelity = I_induced_bound(fidelity_true, delta)
 
-    ## This is an appriximation
-    qfi_fidelity = 8 * (1 - fidelity_true) / (delta**2)
+    # Step 5: SSQFI bounds from Eq. (15)
+    sqrt_E = sqrt_E_subfidelity(rho_trunc, rho_delta_trunc)
+    sqrt_R = sqrt_R_superfidelity(rho_trunc, rho_delta_trunc)
 
-    # if DEBUG:
-    # Intermediate results for debugging
-    # print(f"Fidelity (Truncated): {fidelity_truncated}")
-    # print(f"Fidelity (Generalized): {fidelity_generalized}")
+    sub_qfi_bound = I_induced_bound(sqrt_R, delta)  # Lower bound
+    super_qfi_bound = I_induced_bound(sqrt_E, delta)  # Upper bound
 
-    # step 5: Subfidelity and superbounds (B-2 on theoretical framework on paper)
+    # Step 6: Dynamics-agnostic bounds from Eq. (18)
+    H_delta = max(lower_tqfi, sub_qfi_bound)
+    J_delta = min(upper_tqfi, super_qfi_bound)
 
-    E = np.real(E_subfidelity(rho_trunc, rho_delta_trunc))
-    R = np.real(R_superfidelity(rho_trunc, rho_delta_trunc))
-
-    # from the paper it uses the square root of E and R in place of the fidelity ()hard for mixed states)
-    sub_qfi_bound = I_induced_bound(f_theta_theta_delta=np.sqrt(R), delta=delta)
-
-    super_qfi_bound = I_induced_bound(f_theta_theta_delta=np.sqrt(E), delta=delta)
-
-    # create a result dictionary
-    results = {
+    return {
         "fidelity_truncated": fidelity_truncated,
         "fidelity_truncated_generalized": fidelity_truncated_generalized,
+        "fidelity_true": fidelity_true,
         "lower_tqfi": lower_tqfi,
         "upper_tqfi": upper_tqfi,
-        "fidelity_true": fidelity_true,
         "qfi_fidelity": qfi_fidelity,
         "sub_qfi_bound": sub_qfi_bound,
         "super_qfi_bound": super_qfi_bound,
+        "H_delta": H_delta,
+        "J_delta": J_delta,
     }
-
-    return results
