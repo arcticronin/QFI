@@ -4,6 +4,10 @@ import helper_functions
 
 reload(helper_functions)
 
+"""
+TODO eigencalue crossing can be a problem at some points, at a drop of the fidelity between 2 matrices
+"""
+
 
 # Eq. (6) — Induced bound on QFI from a fidelity-like quantity f(ρ_θ, ρ_θ+δ)
 def I_induced_bound(f_theta_theta_delta, delta):
@@ -71,18 +75,30 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
         - H_delta (max of two lower bounds)
         - J_delta (min of two upper bounds)
     """
-    # Step 1: Truncate density matrices
-    rho_trunc = helper_functions.truncate_density_matrix(rho, m)
-    rho_delta_trunc = helper_functions.truncate_density_matrix(rho_delta, m)
+    # Step 1: Truncate density matrices (parallely using eigenvalues)
+    # rho_trunc = helper_functions.truncate_density_matrix(rho, m)
+    # rho_delta_trunc = helper_functions.truncate_density_matrix(rho_delta, m)
+
+    # Step 1 alternative version, use same eigenspace of the first one to project the second
+    rho_trunc, rho_delta_trunc = helper_functions.truncate_rho_and_project_rho_delta(
+        rho, rho_delta, m, DEBUG=False
+    )
 
     # Step 2: Compute truncated and generalized fidelities
     fidelity_truncated = helper_functions.uhlmann_fidelity_root(
         rho_trunc, rho_delta_trunc
     )
-    fidelity_truncated_generalized = fidelity_truncated + np.sqrt(
+
+    trace_rho = np.trace(rho_trunc)
+    trace_rho_delta = np.trace(rho_delta_trunc)
+    correction_term = np.sqrt(np.clip((1 - trace_rho) * (1 - trace_rho_delta), 0, 1))
+    fidelity_truncated_generalized = fidelity_truncated + correction_term
+
+    correction_term = np.sqrt(
         max(0, (1 - np.trace(rho_trunc)) * (1 - np.trace(rho_delta_trunc)))
     )
 
+    fidelity_truncated_generalized = fidelity_truncated + correction_term
     # Step 3: Compute true fidelity (for comparison)
     fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=DEBUG)
 
@@ -105,6 +121,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     return {
         "fidelity_truncated": fidelity_truncated,
         "fidelity_truncated_generalized": fidelity_truncated_generalized,
+        "correction_term": correction_term,
         "fidelity_true": fidelity_true,
         "lower_tqfi": lower_tqfi,
         "upper_tqfi": upper_tqfi,

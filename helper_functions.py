@@ -129,6 +129,46 @@ def truncate_density_matrix(rho, m, DEBUG=False):
     return rho_trunc
 
 
+def truncate_rho_and_project_rho_delta(rho, rho_delta, m, DEBUG=False):
+    """
+    Truncate `rho` to its top-m eigencomponents and project `rho_delta`
+    onto the same eigenvectors.
+
+    Args:
+        rho (np.ndarray): Density matrix to truncate.
+        rho_delta (np.ndarray): Matrix to project on `rho`'s eigenbasis.
+        m (int): Number of top eigenvectors/eigenvalues to retain.
+        DEBUG (bool): If True, print debug info.
+
+    Returns:
+        tuple:
+            - rho_trunc (np.ndarray): Truncated version of `rho`.
+            - rho_delta_proj (np.ndarray): `rho_delta` projected in same truncated basis.
+    """
+    eigvals, eigvecs = np.linalg.eigh(rho)
+    idx = np.argsort(eigvals)[::-1]  # Descending
+    eigvals = eigvals[idx]
+    eigvecs = eigvecs[:, idx]
+
+    eigvals_trunc = eigvals[:m]
+    eigvecs_trunc = eigvecs[:, :m]
+
+    if DEBUG:
+        print("Top-m eigenvalues of rho:", eigvals_trunc)
+
+    # Truncate rho using its eigenvalues and eigenvectors
+    rho_trunc = eigvecs_trunc @ np.diag(eigvals_trunc) @ eigvecs_trunc.conj().T
+
+    # Project rho_delta onto the same eigenvectors (in full space)
+    rho_delta_proj = (
+        eigvecs_trunc
+        @ (eigvecs_trunc.conj().T @ rho_delta @ eigvecs_trunc)
+        @ eigvecs_trunc.conj().T
+    )
+
+    return rho_trunc, rho_delta_proj
+
+
 def is_density_matrix(mat):
     """Check if a matrix is a valid density matrix."""
     return (
