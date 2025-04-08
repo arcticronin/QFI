@@ -25,7 +25,7 @@ def simulation(
     initial_state=None,
     DEBUG=False,
     derivative_delta=1e-3,
-) -> np.array:
+):
     """ "
     Simulate the quantum state evolution and compute the QFI bounds.
     params:

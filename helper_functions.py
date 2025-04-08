@@ -16,7 +16,50 @@ def trace_out(rho, trace_out_index):
     return rho_qutip.ptrace(sel).full()
 
 
-def uhlmann_fidelity_root(rho1, rho2):
+def uhlmann_fidelity_root(rho, sigma, tol=1e-10, strict=True):
+    """
+    Compute the Uhlmann fidelity (non-squared) between two density matrices.
+
+        F(ρ, σ) = || sqrt(ρ) sqrt(σ) ||_1
+
+    Parameters:
+        rho (ndarray): First density matrix
+        sigma (ndarray): Second density matrix
+        tol (float): Tolerance for treating imaginary parts as numerical noise
+        strict (bool): If True, raises an error when imaginary part is too large;
+                       otherwise returns the real part if imaginary part is negligible
+
+    Returns:
+        float: Uhlmann fidelity in [0, 1]
+    """
+    # Step 1: Compute matrix square roots
+    sqrt_rho = sqrtm(rho)
+    sqrt_sigma = sqrtm(sigma)
+
+    # Step 2: Product of square roots
+    product = sqrt_rho @ sqrt_sigma
+
+    # Step 3: Singular values → trace norm
+    singular_vals = svd(product, compute_uv=False)
+    fidelity = np.sum(singular_vals)
+
+    # Step 4: Handle complex numerical artifacts
+    if np.iscomplexobj(fidelity):
+        imag_part = np.abs(np.imag(fidelity))
+        if imag_part < tol * np.abs(fidelity):
+            return np.real(fidelity)
+        elif strict:
+            raise ValueError(f"Fidelity has non-negligible imaginary part: {fidelity}")
+        else:
+            print(
+                "Warning: fallback, in uhlmann fidelity root, try setting strict = True or ignore"
+            )  # warn
+            return np.real(fidelity)  # fallback
+    else:
+        return fidelity
+
+
+def uhlmann_fidelity_root_unsafe(rho1, rho2):
     """
     Computes the Uhlmann fidelity (non-squared) between two density matrices:
         F(ρ, σ) = || sqrt(ρ) sqrt(σ) ||_1
@@ -62,16 +105,15 @@ def truncate_density_matrix(rho, m, DEBUG=False):
     Truncate a density matrix to its m-largest eigenvalues/eigenvectors.
 
     Args:
-        rho (np.ndarray): Density matrix.
+        rho (np.ndarray): Density matrix (Hermitian, positive semi-definite).
         m (int): Number of largest eigenvalues to keep.
         DEBUG (bool): If True, print truncated eigenvalues.
 
     Returns:
-        np.ndarray: Truncated density matrix.
+        np.ndarray: Truncated density matrix (Hermitian, trace ≤ 1).
     """
-    eigvals, eigvecs = compute_eigen_decomposition(rho)
+    eigvals, eigvecs = compute_eigen_decomposition(rho)  # Already sorted
 
-    # Keep only the m-largest eigenvalues and eigenvectors
     eigvals_trunc = eigvals[:m]
     eigvecs_trunc = eigvecs[:, :m]
 
@@ -85,25 +127,6 @@ def truncate_density_matrix(rho, m, DEBUG=False):
     )
 
     return rho_trunc
-
-
-def get_truncated_eigen_decomposition(rho, m):
-    """
-    Get the truncated eigenvalues and eigenvectors.
-
-    Args:
-        rho (np.ndarray): Density matrix.
-        m (int): Number of largest eigenvalues to keep.
-
-    Returns:
-        tuple: (eigvals_trunc, eigvecs_trunc) where:
-            eigvals_trunc (np.ndarray): Truncated eigenvalues.
-            eigvecs_trunc (np.ndarray): Truncated eigenvectors.
-    """
-    eigvals, eigvecs = compute_eigen_decomposition(rho)
-    eigvals_trunc = eigvals[:m]
-    eigvecs_trunc = eigvecs[:, :m]
-    return eigvals_trunc, eigvecs_trunc
 
 
 def is_density_matrix(mat):
