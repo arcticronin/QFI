@@ -8,6 +8,9 @@ reload(helper_functions)
 TODO eigencalue crossing can be a problem at some points, at a drop of the fidelity between 2 matrices
 """
 
+# Globals
+Eigenvalue_crossing_protection = True
+
 
 # Eq. (6) — Induced bound on QFI from a fidelity-like quantity f(ρ_θ, ρ_θ+δ)
 def I_induced_bound(f_theta_theta_delta, delta):
@@ -75,14 +78,19 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
         - H_delta (max of two lower bounds)
         - J_delta (min of two upper bounds)
     """
-    # Step 1: Truncate density matrices (parallely using eigenvalues)
-    # rho_trunc = helper_functions.truncate_density_matrix(rho, m)
-    # rho_delta_trunc = helper_functions.truncate_density_matrix(rho_delta, m)
+    # Step 1: Truncate density matrices (parallely using eigenvalues, works only on low rank high purity states)
+
+    if Eigenvalue_crossing_protection == False:
+        rho_trunc = helper_functions.truncate_density_matrix(rho, m)
+        rho_delta_trunc = helper_functions.truncate_density_matrix(rho_delta, m)
 
     # Step 1 alternative version, use same eigenspace of the first one to project the second
-    rho_trunc, rho_delta_trunc = helper_functions.truncate_rho_and_project_rho_delta(
-        rho, rho_delta, m, DEBUG=False
-    )
+    else:
+        rho_trunc, rho_delta_trunc = (
+            helper_functions.truncate_rho_and_project_rho_delta(
+                rho, rho_delta, m, DEBUG=False
+            )
+        )
 
     # Step 2: Compute truncated and generalized fidelities
     fidelity_truncated = helper_functions.uhlmann_fidelity_root(

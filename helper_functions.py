@@ -169,6 +169,26 @@ def truncate_rho_and_project_rho_delta(rho, rho_delta, m, DEBUG=False):
     return rho_trunc, rho_delta_proj
 
 
+def get_truncated_eigen_decomposition(rho, m):
+    """
+    Just used as debugging info in pipeline
+    Get the truncated eigenvalues and eigenvectors.
+
+    Args:
+        rho (np.ndarray): Density matrix.
+        m (int): Number of largest eigenvalues to keep.
+
+    Returns:
+        tuple: (eigvals_trunc, eigvecs_trunc) where:
+            eigvals_trunc (np.ndarray): Truncated eigenvalues.
+            eigvecs_trunc (np.ndarray): Truncated eigenvectors.
+    """
+    eigvals, eigvecs = compute_eigen_decomposition(rho)
+    eigvals_trunc = eigvals[:m]
+    eigvecs_trunc = eigvecs[:, :m]
+    return eigvals_trunc, eigvecs_trunc
+
+
 def is_density_matrix(mat):
     """Check if a matrix is a valid density matrix."""
     return (
