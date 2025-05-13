@@ -306,7 +306,7 @@ class IsingQuantumState:
 
         return F_Q
 
-    def compute_drho(self, delta, d=1e-5):
+    def compute_drho(self, delta, d=1e-4):
         """
         Compute the numerical derivative of the density matrix with respect to theta.
 
@@ -325,11 +325,9 @@ class IsingQuantumState:
         # Temporarily modify the field (h_z + theta)
         original_hz = self.h_z
 
-        self.h_z -= delta
+        self.h_z -= d
 
-        rho_m_delta, rho_delta = self.generate_density_matrices_with_perturbation(
-            2 * delta
-        )
+        rho_m_delta, rho_delta = self.generate_density_matrices_with_perturbation(2 * d)
         # Restore original h_z
         self.h_z = original_hz
 

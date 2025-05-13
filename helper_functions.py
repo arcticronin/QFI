@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.linalg import sqrtm, eigh, svd
 import qutip
+import pennylane as qml
 
 
 def trace_out(rho, trace_out_index):
@@ -80,6 +81,10 @@ def uhlmann_fidelity_root_unsafe(rho1, rho2):
 
     singular_vals = np.linalg.svd(product, compute_uv=False)
     return np.real(np.sum(singular_vals))
+
+
+def fidelity_pennylane(rho_1, rho_2):
+    return qml.math.fidelity(rho_1, rho_2)
 
 
 def compute_eigen_decomposition(rho):

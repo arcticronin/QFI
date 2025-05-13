@@ -9,6 +9,8 @@ TODO eigencalue crossing can be a problem at some points, at a drop of the fidel
 """
 
 # Globals
+# Set to True to use the alternative version of truncation
+# This version uses the same eigenspace of the first density matrix to project the second one (theoretically sound)
 Eigenvalue_crossing_protection = True
 
 
@@ -108,7 +110,10 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
 
     fidelity_truncated_generalized = fidelity_truncated + correction_term
     # Step 3: Compute true fidelity (for comparison)
+
     fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=DEBUG)
+
+    fidelity_pennylane = helper_functions.fidelity_pennylane(rho, rho_delta)
 
     # Step 4: TQFI bounds from Eq. (6)
     lower_tqfi = I_induced_bound(fidelity_truncated_generalized, delta)
@@ -131,6 +136,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
         "fidelity_truncated_generalized": fidelity_truncated_generalized,
         "correction_term": correction_term,
         "fidelity_true": fidelity_true,
+        "fidelity_pennylane": fidelity_pennylane,
         "lower_tqfi": lower_tqfi,
         "upper_tqfi": upper_tqfi,
         "qfi_fidelity": qfi_fidelity,
