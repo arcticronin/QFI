@@ -5,7 +5,93 @@ from scipy.optimize import minimize
 import pennylane as qml
 
 
-def vqfe_from_circuit(circuit_fn, n_qubits, L=2, m=1, maxiter=200):
+def vqfe_from_circuit(circuit_fn, active_rho, active_rho_delta, L=2, m=1, maxiter=200):
+    """
+    Variational Quantum Fidelity Estimation between two reduced states ρ and ρ_delta.
+
+    Args:
+        circuit_fn (callable): Prepares a 2n-qubit state.
+        active_rho (list[int]): Wires for the reduced state ρ.
+        active_rho_delta (list[int]): Wires for the reduced state ρ_delta.
+        L (int): Ansatz depth.
+        m (int): Truncation rank.
+        maxiter (int): Optimization steps.
+
+    Returns:
+        dict: Fidelity data and rotated matrices.
+    """
+    # Ensure active_rho and active_rho_delta same lenght
+    if len(active_rho) != len(active_rho_delta):
+        raise ValueError("active_rho and active_rho_delta must have the same length.")
+
+    dev = qml.device("default.mixed", wires=max(active_rho + active_rho_delta) + 1)
+
+    n_active = len(active_rho)
+
+    def ansatz_U(params, wires):
+        for l in range(params.shape[0]):
+            for i, q in enumerate(wires):
+                qml.RZ(params[l, i, 0], wires=q)
+                qml.RY(params[l, i, 1], wires=q)
+                qml.RZ(params[l, i, 2], wires=q)
+            for i in range(len(wires) - 1):
+                qml.CNOT(wires=[wires[i], wires[i + 1]])
+
+    def apply(params, wires):
+        @qml.qnode(dev)
+        def circuit():
+            circuit_fn()
+            ansatz_U(params, wires)
+            return qml.density_matrix(wires=wires)
+
+        return circuit()
+
+    def cost(params):
+        rho_rot = apply(params, active_rho)
+        diag = np.real(np.diag(rho_rot))
+        return -np.sum(diag**2)
+
+    init_params = 0.1 * np.random.randn(L, n_active, 3)
+    result = minimize(
+        lambda p: cost(p.reshape(L, n_active, 3)),
+        init_params.flatten(),
+        method="COBYLA",
+        options={"maxiter": maxiter, "disp": False},
+    )
+    opt_params = result.x.reshape(L, n_active, 3)
+
+    rho_rot = apply(opt_params, active_rho)
+    sigma_rot = apply(opt_params, active_rho_delta)
+
+    eigvals = np.real(np.diag(rho_rot))
+    sorted_indices = np.argsort(eigvals)[::-1]
+    top_indices = sorted_indices[:m]
+    r_top = eigvals[top_indices]
+    sigma_sub = sigma_rot[np.ix_(top_indices, top_indices)]
+
+    sqrt_r_ir_j = np.sqrt(np.outer(r_top, r_top))
+    T = sqrt_r_ir_j * np.real(sigma_sub)
+    T = 0.5 * (T + T.T)
+
+    eigvals_T = np.clip(np.linalg.eigvalsh(T), 0, None)
+    F_trunc = np.sum(np.sqrt(eigvals_T))
+    trace_rho_m = np.sum(r_top)
+    trace_sigma_m = np.real(np.trace(sigma_sub))
+    F_star = F_trunc + np.sqrt(max(0, (1 - trace_rho_m) * (1 - trace_sigma_m)))
+
+    return {
+        "F_trunc": F_trunc,
+        "F_star": F_star,
+        "top_eigenvalues": r_top,
+        "trace_rho_m": trace_rho_m,
+        "trace_sigma_m": trace_sigma_m,
+        "opt_params": opt_params,
+        "rho_rotated": rho_rot,
+        "sigma_rotated": sigma_rot,
+    }
+
+
+def vqfe_from_circuit_total(circuit_fn, n_qubits, L=2, m=1, maxiter=200):
     """
     Compute truncated and generalized fidelity between two quantum states ρ and ρ_delta,
     both prepared in a 2n-qubit circuit, by variationally diagonalizing ρ.
@@ -95,7 +181,7 @@ def vqfe_from_circuit(circuit_fn, n_qubits, L=2, m=1, maxiter=200):
     }
 
 
-def vqfe_from_density_matrices(rho, rho_delta, L=2, m=1, maxiter=200):
+def vqfe_from_density_matrices_total(rho, rho_delta, L=2, m=1, maxiter=200):
     """Compute fidelity bounds between rho and rho_delta using top-m eigenvectors of rho.
 
     Args:

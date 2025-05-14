@@ -1,180 +1,117 @@
 import numpy as np
 from scipy.linalg import expm
-import pandas as pd
 import helper_functions
 
+# import pandas as pd
 
-class IsingQuantumState:
+
+class SpinChainXXZ:
     """
-    A class to represent the quantum state evolution under an n-qubit Ising-like Hamiltonian.
+    Simulates a 1D spin chain with nearest-neighbor XX interactions and local Z fields.
+
+    Hamiltonian:
+        H = J * ∑ X_i X_{i+1} + h_z * ∑ Z_i
+
+    Open boundary conditions are used.
     """
 
-    def __init__(
-        self,
-        n,
-        a_x,
-        h_z,
-        # trace_out_index,
-        initial_state="0",
-        DEBUG=False,
-    ):
+    def __init__(self, n, J, h_z, initial_state="0", DEBUG=False):
         """
-        Initialize the system with given interaction and external field parameters.
-
         Parameters:
-        - n: Number of qubits.
-        - a_x: Coupling coefficient for the Ising interaction term.
-        - h_z: Coefficient for the external field in the Z direction.
-        # - trace_out_index: Indices of the qubits to trace out.
-        - initial_state: Initial state or density matrix.
-            - "0" -> Computational basis state |0...0>
-            - "H" -> Uniform Hadamard state
-            - ndarray -> Custom state vector or density matrix
+        - n (int): Number of qubits.
+        - J (float): Coupling strength for the X_i X_{i+1} interaction term.
+        - h_z (float): Strength of the longitudinal Z field.
+        - initial_state (str or np.ndarray): Initial state ("0", "H", or ndarray)
+        - DEBUG (bool): Print diagnostic information.
         """
         self.n = n
-        self.a_x = a_x
+        self.J = J
         self.h_z = h_z
         self.paulis = self._pauli_matrices()
-
         dim = 2**n
 
-        if DEBUG:
-            print(f"Dimension of the Hilbert space: {dim}")
-            print(
-                f"Initial state type: {type(initial_state)} | initial_state: {initial_state}"
-            )
-
-        # ---------- Handle state vector or density matrix ----------
+        # Prepare initial state
         if isinstance(initial_state, np.ndarray):
             if initial_state.shape == (dim,):
-                # State vector → Convert to density matrix
                 self.initial_rho = np.outer(initial_state, initial_state.conj())
-                if DEBUG:
-                    print(
-                        "Initial state provided as state vector -> Converted to density matrix."
-                    )
             elif initial_state.shape == (dim, dim):
                 self.initial_rho = initial_state
-                if DEBUG:
-                    print("Initial state provided as density matrix.")
             else:
-                raise ValueError(f"Invalid initial state shape: {initial_state.shape}")
+                raise ValueError("Invalid shape for initial_state.")
 
         elif initial_state == "0":
-            # Computational basis state |0...0>
             state = np.zeros(dim, dtype=complex)
             state[0] = 1.0
             self.initial_rho = np.outer(state, state.conj())
-            if DEBUG:
-                print("Initial state: |0...0> (converted to density matrix)")
 
         elif initial_state == "H":
-            # Hadamard state (uniform superposition)
             state = np.ones(dim, dtype=complex) / np.sqrt(dim)
             self.initial_rho = np.outer(state, state.conj())
-            if DEBUG:
-                print("Initial state: Hadamard state (converted to density matrix)")
-
         else:
-            raise ValueError(
-                "Invalid initial state. Choose '0', 'H', or provide a valid custom state or matrix."
-            )
+            raise ValueError("initial_state must be '0', 'H', or a valid ndarray.")
 
-        # ---------- Validate density matrix ----------
-        if self.initial_rho.shape != (dim, dim):
-            raise ValueError(
-                f"Invalid initial matrix shape: {self.initial_rho.shape}, expected ({dim}, {dim})"
-            )
+        if DEBUG:
+            print(f"Initial ρ:\n{self.initial_rho}")
+
         if not np.allclose(self.initial_rho, self.initial_rho.conj().T):
             raise ValueError("Initial matrix is not Hermitian.")
-        # if not np.all(np.linalg.eigvals(self.initial_rho) >= 0):
-        #    raise ValueError("Initial matrix is not positive semidefinite.")
         if not np.isclose(np.trace(self.initial_rho), 1):
             raise ValueError("Initial matrix trace is not 1.")
 
-        # # ---------- Handle trace out indices ----------
-        # if trace_out_index == -1:
-        #     self.trace_out_index = [n - 1]
-        #     if DEBUG:
-        #         print("Tracing out the last qubit.")
-        # else:
-        #     if any(not (0 <= i < n) for i in trace_out_index):
-        #         raise ValueError("Invalid trace_out_index: Index out of bounds.")
-        #     self.trace_out_index = trace_out_index
-
     def _pauli_matrices(self):
-        """Define Pauli matrices."""
         I = np.array([[1, 0], [0, 1]], dtype=complex)
         X = np.array([[0, 1], [1, 0]], dtype=complex)
-        Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
         Z = np.array([[1, 0], [0, -1]], dtype=complex)
-        return {"I": I, "X": X, "Y": Y, "Z": Z}
+        return {"I": I, "X": X, "Z": Z}
 
     def _single_site_operator(self, op, site):
-        """
-        Builds an n-qubit operator that acts as 'op' on a specific qubit 'site'
-        (0-indexed) and acts like the identity on the others.
-        """
-        # For n qubits, we do a tensor product of I on all sites except 'site'
-        # where we put 'op'
-        I = self.paulis["I"]
-        operators = []
-        for i in range(self.n):  # build the list of the operators
-            operators.append(op if i == site else I)
-
-        # Take the tensor product in order
-        out = operators[0]
+        """Builds a tensor product operator with `op` at position `site`."""
+        ops = [self.paulis["I"]] * self.n
+        ops[site] = op
+        out = ops[0]
         for i in range(1, self.n):
-            out = np.kron(out, operators[i])
+            out = np.kron(out, ops[i])
         return out
 
     def _two_site_interaction(self, op, site1, site2):
-        """
-        Constructs an n-qubit operator applying 'op' on site1 and site2.
-        """
-        I = self.paulis["I"]
-        operators = [I] * self.n  # Initialize all sites as identity
-        operators[site1] = op  # modify the 2 we want to apply the operator
-        operators[site2] = op
-
-        # Compute the tensor product
-        out = operators[0]
+        """Builds an operator applying `op` to qubits `site1` and `site2`."""
+        ops = [self.paulis["I"]] * self.n
+        ops[site1] = op
+        ops[site2] = op
+        out = ops[0]
         for i in range(1, self.n):
-            out = np.kron(out, operators[i])
+            out = np.kron(out, ops[i])
         return out
 
     def _construct_hamiltonian(self):
         """
-        Constructs the n-qubit Ising-like Hamiltonian:
-
-        For a 1D chain of n qubits with OPEN boundary conditions:
-            H = a_x * sum_{i=0 to n-2} (X_i X_{i+1})
-                + h_z * sum_{i=0 to n-1} (Z_i)
-
-        change boundary conditions or add more terms ???
+        Builds:
+        H = J * ∑ X_i X_{i+1} + h_z * ∑ Z_i
         """
         X = self.paulis["X"]
         Z = self.paulis["Z"]
-
-        # Build the Hamiltonian term by term.
-        # Interaction terms: a_x * (X_i X_{i+1})
         H = np.zeros((2**self.n, 2**self.n), dtype=complex)
 
-        # Sum over pairs (i, i+1) for the X-X interaction (anti_diagonal?)
+        # XX interactions
         for i in range(self.n - 1):
-            H += self.a_x * self._two_site_interaction(X, i, i + 1)
+            H += self.J * self._two_site_interaction(X, i, i + 1)
 
-        # print("H at step 1")
-        # print(pd.DataFrame(H))
-
-        # Local field terms: h_z * Z_i
+        # Z fields
         for i in range(self.n):
-            ## Caso i = 0, i = n-1? boundary contitions? OPEN BOUNDARY
             H += self.h_z * self._single_site_operator(Z, i)
-        # print("H at step 2")
-        # print(pd.DataFrame(H))
 
         return H
+
+    def generate_density_matrix(self):
+        """
+        Evolve initial state under H: ρ → U ρ U†
+
+        Returns:
+        - np.ndarray: Final density matrix after unitary evolution.
+        """
+        H = self._construct_hamiltonian()
+        U = expm(-1j * H)
+        return U @ self.initial_rho @ U.conj().T
 
     def generate_density_matrix(self):
         """
@@ -197,7 +134,7 @@ class IsingQuantumState:
 
     def generate_density_matrices_with_perturbation(self, delta=0.01):
         """
-        Generates two density matrices: one with (a_x, h_z) and another with a perturbed field (h_z + delta).
+        Generates two density matrices: one with (J_xx, h_z) and another with a perturbed field (h_z + delta).
 
         Parameters:
         - delta: Small perturbation to the external field h_z.
@@ -216,6 +153,26 @@ class IsingQuantumState:
         self.h_z = original_hz
 
         return rho, rho_perturbed
+
+    def generate_mixed_density_matrices_with_perturbation(
+        self, trace_out_indices, delta=0.01
+    ):
+        """
+        Generates a mixed state by tracing out one or more qubits.
+        """
+
+        rho_pure, rho_delta_pure = self.generate_density_matrices_with_perturbation(
+            delta=delta
+        )
+
+        rho_mixed = helper_functions.trace_out(
+            rho=rho_pure, trace_out_index=trace_out_indices
+        )
+        rho_delta_mixed = helper_functions.trace_out(
+            rho=rho_delta_pure, trace_out_index=trace_out_indices
+        )
+
+        return rho_mixed, rho_delta_mixed
 
     # @staticmethod
     # def generate_random_positive_density_matrix(n):
