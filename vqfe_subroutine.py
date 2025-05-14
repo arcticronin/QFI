@@ -2,12 +2,97 @@ import pennylane as qml
 import numpy as np
 from math import sqrt
 from scipy.optimize import minimize
-
-
 import pennylane as qml
-import numpy as np
-from math import sqrt
-from scipy.optimize import minimize
+
+
+def vqfe_from_circuit(circuit_fn, n_qubits, L=2, m=1, maxiter=200):
+    """
+    Compute truncated and generalized fidelity between two quantum states ρ and ρ_delta,
+    both prepared in a 2n-qubit circuit, by variationally diagonalizing ρ.
+
+    Args:
+        circuit_fn (callable): Function that prepares a 2n-qubit state such that
+                               qubits [0..n-1] encode ρ and [n..2n-1] encode ρ_delta.
+        n_qubits (int): Number of qubits in each state.
+        L (int): Number of ansatz layers.
+        m (int): Truncation rank (top-m eigenvectors).
+        maxiter (int): Optimization steps for variational diagonalization.
+
+    Returns:
+        dict: {F_trunc, F_star, top_eigenvalues, opt_params, rotated matrices, etc.}
+    """
+    dev = qml.device("default.mixed", wires=2 * n_qubits)
+
+    def ansatz_U(params, wires):
+        for l in range(params.shape[0]):
+            for i, q in enumerate(wires):
+                qml.RZ(params[l, i, 0], wires=q)
+                qml.RY(params[l, i, 1], wires=q)
+                qml.RZ(params[l, i, 2], wires=q)
+            for i in range(len(wires) - 1):
+                qml.CNOT(wires=[wires[i], wires[i + 1]])
+
+    def apply_to_rho(params):
+        @qml.qnode(dev)
+        def circuit():
+            circuit_fn()
+            ansatz_U(params, wires=range(n_qubits))
+            return qml.density_matrix(wires=range(n_qubits))
+
+        return circuit()
+
+    def apply_to_rho_delta(params):
+        @qml.qnode(dev)
+        def circuit():
+            circuit_fn()
+            ansatz_U(params, wires=range(n_qubits, 2 * n_qubits))
+            return qml.density_matrix(wires=range(n_qubits, 2 * n_qubits))
+
+        return circuit()
+
+    def cost(params):
+        rho_rot = apply_to_rho(params)
+        diag = np.real(np.diag(rho_rot))
+        return -np.sum(diag**2)
+
+    init_params = 0.1 * np.random.randn(L, n_qubits, 3)
+    result = minimize(
+        lambda p: cost(p.reshape(L, n_qubits, 3)),
+        init_params.flatten(),
+        method="COBYLA",
+        options={"maxiter": maxiter, "disp": False},
+    )
+    opt_params = result.x.reshape(L, n_qubits, 3)
+
+    rho_rot = apply_to_rho(opt_params)
+    sigma_rot = apply_to_rho_delta(opt_params)
+
+    eigvals = np.real(np.diag(rho_rot))
+    sorted_indices = np.argsort(eigvals)[::-1]
+    top_indices = sorted_indices[:m]
+    r_top = eigvals[top_indices]
+    sigma_sub = sigma_rot[np.ix_(top_indices, top_indices)]
+
+    sqrt_r_ir_j = np.sqrt(np.outer(r_top, r_top))
+    T = sqrt_r_ir_j * np.real(sigma_sub)
+    T = 0.5 * (T + T.T)
+
+    eigvals_T = np.clip(np.linalg.eigvalsh(T), 0, None)
+    F_trunc = np.sum(np.sqrt(eigvals_T))
+    trace_rho_m = np.sum(r_top)
+    trace_sigma_m = np.real(np.trace(sigma_sub))
+    F_star = F_trunc + sqrt(max(0, (1 - trace_rho_m) * (1 - trace_sigma_m)))
+
+    return {
+        "F_trunc": F_trunc,
+        "F_star": F_star,
+        "top_eigenvalues": r_top,
+        "trace_rho_m": trace_rho_m,
+        "trace_sigma_m": trace_sigma_m,
+        "opt_params": opt_params,
+        "rho_rotated": rho_rot,
+        "sigma_rotated": sigma_rot,
+    }
 
 
 def vqfe_from_density_matrices(rho, rho_delta, L=2, m=1, maxiter=200):
