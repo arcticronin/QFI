@@ -4,6 +4,191 @@ from math import sqrt
 from scipy.optimize import minimize
 import pennylane as qml
 
+import pennylane as qml
+from pennylane import (
+    numpy as np,
+)  # Use PennyLane's numpy for potential autograd compatibility
+from scipy.optimize import minimize
+from numpy import sqrt  # Or from pennylane.math import sqrt
+
+
+def vqfe_from_circuit_disjoint(
+    circuit_fn,
+    total_num_qubits,  # Total wires the circuit_fn acts on
+    active_rho_wires,  # List/tuple of wires for the first subsystem
+    active_rho_delta_wires,  # List/tuple of wires for the second subsystem
+    L=2,
+    m=1,
+    maxiter=200,
+):
+    """
+    Compute truncated and generalized fidelity between two quantum states ρ and ρ_delta,
+    defined on disjoint sets of qubits 'active_rho_wires' and 'active_rho_delta_wires' respectively,
+    both prepared within a larger 'total_num_qubits'-qubit circuit, by variationally diagonalizing ρ.
+
+    Args:
+        circuit_fn (callable): Function that prepares a 'total_num_qubits'-qubit state.
+                               It's assumed that this function prepares the desired states
+                               on the qubits that will be specified by active_rho_wires
+                               and active_rho_delta_wires.
+        total_num_qubits (int): Total number of qubits the circuit_fn operates on and the device uses.
+        active_rho_wires (list[int]): List of qubit indices for the first state (ρ).
+        active_rho_delta_wires (list[int]): List of qubit indices for the second state (ρ_delta).
+                                           Must be disjoint from active_rho_wires and have the same length.
+        L (int): Number of ansatz layers for variational diagonalization.
+        m (int): Truncation rank (top-m eigenvectors).
+        maxiter (int): Optimization steps for variational diagonalization.
+
+    Returns:
+        dict: {F_trunc, F_star, top_eigenvalues, opt_params, rotated matrices, etc.}
+    """
+    if not isinstance(active_rho_wires, (list, tuple)) or not isinstance(
+        active_rho_delta_wires, (list, tuple)
+    ):
+        raise ValueError(
+            "active_rho_wires and active_rho_delta_wires must be lists or tuples."
+        )
+
+    if len(active_rho_wires) != len(active_rho_delta_wires):
+        raise ValueError(
+            "active_rho_wires and active_rho_delta_wires must have the same length."
+        )
+    if not active_rho_wires:  # Handles case of empty list
+        raise ValueError("active_rho_wires cannot be empty.")
+
+    # Check for disjointness
+    if set(active_rho_wires) & set(active_rho_delta_wires):
+        raise ValueError(
+            "active_rho_wires and active_rho_delta_wires must be disjoint."
+        )
+
+    n_subsystem_qubits = len(active_rho_wires)
+
+    # Ensure all active wires are within the total_num_qubits range
+    all_active_wires = set(active_rho_wires) | set(active_rho_delta_wires)
+    if max(all_active_wires, default=-1) >= total_num_qubits:
+        raise ValueError("All active wire indices must be less than total_num_qubits.")
+    if min(all_active_wires, default=0) < 0:
+        raise ValueError("Wire indices cannot be negative.")
+
+    dev = qml.device("default.mixed", wires=total_num_qubits)
+
+    def ansatz_U(params, wires_to_act_on):  # Renamed for clarity
+        # params shape: (L, n_subsystem_qubits, 3)
+        for l_idx in range(params.shape[0]):  # L layers
+            for i, q_idx in enumerate(
+                wires_to_act_on
+            ):  # iterate over actual wire indices
+                qml.RZ(params[l_idx, i, 0], wires=q_idx)
+                qml.RY(params[l_idx, i, 1], wires=q_idx)
+                qml.RZ(params[l_idx, i, 2], wires=q_idx)
+            # Apply CNOTs only if there's more than one qubit in the subsystem
+            if len(wires_to_act_on) > 1:
+                for i in range(len(wires_to_act_on) - 1):
+                    qml.CNOT(wires=[wires_to_act_on[i], wires_to_act_on[i + 1]])
+
+    # QNode to apply ansatz U to the rho subsystem and get its density matrix
+    @qml.qnode(
+        dev, interface="autograd"
+    )  # Use autograd if using scipy minimize with pennylane numpy
+    def circuit_rho_rotated(params_rho):
+        circuit_fn()  # Prepare the initial state on all total_num_qubits
+        ansatz_U(params_rho, wires_to_act_on=active_rho_wires)
+        return qml.density_matrix(wires=active_rho_wires)
+
+    # QNode to apply the SAME ansatz U (optimized for rho) to the rho_delta subsystem
+    # and get its density matrix
+    @qml.qnode(dev, interface="autograd")
+    def circuit_rho_delta_rotated(params_rho):  # Takes params optimized for rho
+        circuit_fn()  # Prepare the initial state on all total_num_qubits
+        # IMPORTANT: The variational parameters 'params_rho' were optimized to diagonalize rho.
+        # We apply these same parameters to the rho_delta subsystem.
+        ansatz_U(params_rho, wires_to_act_on=active_rho_delta_wires)
+        return qml.density_matrix(wires=active_rho_delta_wires)
+
+    def cost(params_flat):
+        # Params are flattened by scipy.optimize.minimize, reshape them.
+        params_rho = params_flat.reshape(L, n_subsystem_qubits, 3)
+        rho_rot = circuit_rho_rotated(params_rho)
+        # Cost function aims to maximize the sum of squares of diagonal elements of rho_rot
+        # This encourages rho_rot to be diagonal in the computational basis.
+        diag_elements = np.real(np.diag(rho_rot))
+        return -np.sum(diag_elements**2)
+
+    # Initialize parameters for the ansatz U
+    init_params_shape = (L, n_subsystem_qubits, 3)
+    init_params_flat = (0.1 * np.random.random_sample(size=init_params_shape)).flatten()
+    # Scipy optimizer expects a 1D array for parameters
+    # print(f"Initial parameters shape for optimizer: {init_params_flat.shape}")
+
+    # Variational optimization to find parameters that diagonalize rho
+    result = minimize(
+        cost,
+        init_params_flat,
+        method="COBYLA",  # COBYLA is a gradient-free method
+        options={"maxiter": maxiter, "disp": False},
+    )
+    opt_params_flat = result.x
+    opt_params_rho = opt_params_flat.reshape(L, n_subsystem_qubits, 3)
+
+    # Get the rotated density matrices using the optimized parameters
+    rho_rot_final = circuit_rho_rotated(opt_params_rho)
+    # For sigma_rot, we apply the U optimized for rho to the rho_delta subsystem
+    sigma_rot_final = circuit_rho_delta_rotated(opt_params_rho)
+
+    # Extract eigenvalues (diagonal elements of rho_rot_final)
+    eigvals_rho = np.real(np.diag(rho_rot_final))
+    sorted_indices = np.argsort(eigvals_rho)[::-1]  # Sort in descending order
+    top_indices = sorted_indices[:m]  # Select top-m eigenvalues/eigenvectors
+
+    r_top = eigvals_rho[top_indices]  # Top-m eigenvalues of rotated rho
+
+    # Construct the submatrix of rotated sigma corresponding to the top-m eigenvectors of rho
+    # sigma_sub = sigma_rot_final[np.ix_(top_indices, top_indices)]
+    # Ensure top_indices are valid for indexing if m > 2**n_subsystem_qubits
+    # (though typically m <= 2**n_subsystem_qubits)
+    # For Pennylane's numpy, direct slicing should work if it behaves like NumPy
+    # If sigma_rot_final is a standard NumPy array, np.ix_ is fine.
+    # Let's try direct slicing first, which is more common with qml.math
+    # However, np.ix_ is the correct way for this kind of advanced indexing.
+    # Since we used `interface="autograd"` and `pennylane.numpy`, np.ix_ should be fine.
+    sigma_sub = sigma_rot_final[np.ix_(top_indices, top_indices)]
+
+    # Compute the T matrix for truncated fidelity calculation
+    # sqrt_r_ir_j = np.sqrt(np.outer(r_top, r_top))
+    # Ensure r_top elements are non-negative for sqrt
+    r_top_clipped = np.clip(r_top, 0, None)
+    sqrt_r_ir_j = np.sqrt(np.outer(r_top_clipped, r_top_clipped))
+
+    T = sqrt_r_ir_j * np.real(sigma_sub)
+    T = 0.5 * (T + T.T)  # Symmetrize T
+
+    # Eigenvalues of T must be non-negative for sqrt
+    eigvals_T = np.clip(np.linalg.eigvalsh(T), 0, None)
+    F_trunc = np.sum(np.sqrt(eigvals_T))
+
+    trace_rho_m = np.sum(r_top)  # Trace of the truncated (rotated) rho
+    trace_sigma_m = np.real(
+        np.trace(sigma_sub)
+    )  # Trace of the submatrix of (rotated) sigma
+
+    # Generalized fidelity F_star
+    term_under_sqrt = (1 - trace_rho_m) * (1 - trace_sigma_m)
+    F_star = F_trunc + sqrt(max(0, term_under_sqrt))  # Using global sqrt
+
+    return {
+        "F_trunc": F_trunc,
+        "F_star": F_star,
+        "top_eigenvalues_rho": r_top,  # Eigenvalues of rotated rho (should be ~diagonal)
+        "trace_rho_m": trace_rho_m,
+        "trace_sigma_m": trace_sigma_m,
+        "opt_params": opt_params_rho,
+        "rho_rotated_final": rho_rot_final,
+        "sigma_rotated_final": sigma_rot_final,  # This is U_rho_opt^{\dagger} rho_delta U_rho_opt
+        "T_matrix_eigvals": eigvals_T,
+        "cost_value": result.fun,
+    }
+
 
 def vqfe_from_circuit(circuit_fn, active_rho, active_rho_delta, L=2, m=1, maxiter=200):
     """
@@ -24,7 +209,11 @@ def vqfe_from_circuit(circuit_fn, active_rho, active_rho_delta, L=2, m=1, maxite
     if len(active_rho) != len(active_rho_delta):
         raise ValueError("active_rho and active_rho_delta must have the same length.")
 
-    dev = qml.device("default.mixed", wires=max(active_rho + active_rho_delta) + 1)
+    # try to fix but i dont think it works
+    # dev = qml.device("default.mixed", wires=max(active_rho + active_rho_delta) + 1)
+
+    all_wires = list(set(active_rho + active_rho_delta))
+    dev = qml.device("default.mixed", wires=all_wires)
 
     n_active = len(active_rho)
 

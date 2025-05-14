@@ -112,7 +112,7 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     # Step 3: Compute true fidelity (for comparison)
 
     fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=DEBUG)
-
+    uhlmann_fidelity = helper_functions.uhlmann_fidelity_root(rho, rho_delta)
     fidelity_pennylane = helper_functions.fidelity_pennylane(rho, rho_delta)
 
     # Step 4: TQFI bounds from Eq. (6)
@@ -144,4 +144,5 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
         "super_qfi_bound": super_qfi_bound,
         "H_delta": H_delta,
         "J_delta": J_delta,
+        "uhlmann_fidelity": uhlmann_fidelity,
     }
