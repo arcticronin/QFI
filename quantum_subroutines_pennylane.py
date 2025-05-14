@@ -166,3 +166,39 @@ def measure_sub_super_fidelity(n_qubits, rho, rho_delta):
     R_val = tr_r_rd + np.sqrt(factor_clip)
 
     return (E_val, R_val)
+
+
+def create_cyclic_swap_circuit(n_qubits):
+    """Returns a QNode performing an ancilla‐controlled 4‐cycle on four n-qubit states."""
+    total_wires = 4 * n_qubits + 1
+    dev = qml.device("default.mixed", wires=total_wires)
+
+    @qml.qnode(dev)
+    def cyclic_swap(rho1, rho2, rho3, rho4):
+        # Load the four states on blocks [1..n], [n+1..2n], [2n+1..3n], [3n+1..4n]
+        for idx, rho in enumerate([rho1, rho2, rho3, rho4]):
+            start = 1 + idx * n_qubits
+            wires = range(start, start + n_qubits)
+            qml.QubitDensityMatrix(rho, wires=wires)
+
+        # Ancilla on wire 0
+        qml.Hadamard(wires=0)
+
+        # For each qubit in the blocks, apply three controlled‐SWAPs
+        for i in range(n_qubits):
+            w1 = 1 + i
+            w2 = 1 + n_qubits + i
+            w3 = 1 + 2 * n_qubits + i
+            w4 = 1 + 3 * n_qubits + i
+
+            # (1 <-> 2)
+            qml.ctrl(qml.SWAP, control=0)(wires=[w1, w2])
+            # (1 <-> 3)
+            qml.ctrl(qml.SWAP, control=0)(wires=[w1, w3])
+            # (1 <-> 4)
+            qml.ctrl(qml.SWAP, control=0)(wires=[w1, w4])
+
+        qml.Hadamard(wires=0)
+        return qml.probs(wires=0)
+
+    return cyclic_swap
