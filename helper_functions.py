@@ -2,6 +2,7 @@ import numpy as np
 from scipy.linalg import sqrtm, eigh, svd
 import qutip
 import pennylane as qml
+import math
 
 
 def trace_out(rho, trace_out_index):
@@ -291,3 +292,100 @@ def random_mixed_density_matrix(N, n):
     trace_out_index = np.random.choice(range(N), size=N - n, replace=False)
 
     return trace_out(rho=rho, trace_out_index=trace_out_index)
+
+
+def dm_to_qobj(numpy_dm, dims_ket_list=None, title=None):
+    """
+    Converts a NumPy array representing a density matrix to a QuTiP Qobj
+    and pretty-prints it. It attempts to infer qubit dimensions if N is a
+    power of 2, otherwise assumes a single N-level system.
+
+    Parameters:
+    ----------
+    numpy_dm : np.ndarray
+        The density matrix as a NumPy array.
+    dims_ket_list : list of int, optional
+        A list specifying the dimensions of the ket subsystems, e.g., [2, 2] for
+        two qubits. If None, the function will try to infer dimensions.
+        The bra dimensions will be assumed to be the same.
+    title : str, optional
+        A title to print before the QuTiP object.
+
+    Returns:
+    -------
+    qutip.Qobj
+        The QuTiP Qobj representation of the density matrix.
+
+    Raises:
+    ------
+    ValueError
+        If the input is not a 2D square NumPy array, or if user-provided
+        dims_ket_list doesn't match the matrix dimensions.
+    """
+    if not isinstance(numpy_dm, np.ndarray):
+        raise ValueError("Input must be a NumPy array.")
+    if numpy_dm.ndim != 2 or numpy_dm.shape[0] != numpy_dm.shape[1]:
+        raise ValueError("Input NumPy array must be a 2D square matrix.")
+
+    N = numpy_dm.shape[0]
+
+    if N == 0:
+        print("Warning: Input matrix is empty (0x0).")
+        # QuTiP can handle Qobj(np.array([[]]), dims=[[0],[0]])
+        # but it's a bit strange for a density matrix.
+        # For consistency, let's use [[0],[0]] if no dims_ket_list provided.
+        # Or one could raise an error.
+        if dims_ket_list is None:
+            final_dims_ket = [0]
+        elif (
+            dims_ket_list == [0] or dims_ket_list == []
+        ):  # allow user to specify empty/0-dim
+            final_dims_ket = dims_ket_list
+        else:
+            raise ValueError("dims_ket_list does not match 0x0 matrix dimension.")
+
+    elif dims_ket_list is not None:
+        if not isinstance(dims_ket_list, list) or not all(
+            isinstance(d, int) and d > 0 for d in dims_ket_list
+        ):
+            raise ValueError("dims_ket_list must be a list of positive integers.")
+        if math.prod(dims_ket_list) != N:
+            raise ValueError(
+                f"Product of dimensions in dims_ket_list ({math.prod(dims_ket_list)}) "
+                f"does not match matrix dimension N={N}."
+            )
+        final_dims_ket = dims_ket_list
+    else:
+        # Automatic dimension inference
+        if N == 1:
+            final_dims_ket = [1]
+        # Check if N is a power of 2 (N = 2^k for k > 0)
+        # (N > 0 is already true here, N & (N - 1) == 0 checks for power of 2)
+        elif (N > 0) and (N & (N - 1) == 0):
+            num_qubits = N.bit_length() - 1
+            final_dims_ket = [2] * num_qubits
+        else:
+            # If not a power of 2, assume a single N-level system
+            final_dims_ket = [N]
+
+    qutip_dims = [final_dims_ket, final_dims_ket]
+
+    # Create the Qobj
+    # For density matrices, type='oper'. isherm will be checked by QuTiP.
+    # q_dm = qutip.Qobj(numpy_dm, dims=qutip_dims, type="oper")
+    q_dm = qutip.Qobj(numpy_dm, dims=qutip_dims)
+
+    # if title:
+    #    print(title)
+    # print(q_dm)
+
+    # You might want to add some basic checks if it's a valid DM
+    # print(f"  Is Hermitian: {q_dm.isherm}")
+    # if q_dm.isherm:
+    #     try:
+    #         tr = q_dm.tr()
+    #         print(f"  Trace: {tr:.3f} (should be close to 1 for a DM)")
+    #         # Check for positivity (more complex, involves eigenvalues)
+    #     except Exception:
+    #         print("  Could not compute trace.")
+    return q_dm
