@@ -2,6 +2,71 @@ import pennylane as qml
 import numpy as np
 
 
+def make_tfim_circuits(J_param, hx_param, delta_hx, n_qubits, time_evolution=1.0):
+    """
+    Returns a function that prepares a 2n-qubit quantum state representing:
+    - First n qubits: evolved under TFIM (with -J * ZZ and -hx * X)
+    - Second n qubits: evolved under TFIM (with -J * ZZ and -(hx + delta_hx) * X)
+
+    This circuit directly implements the standard Transverse-Field Ising Model Hamiltonian:
+    H = -J * ∑ Z_i Z_{i+1} - h_x * ∑ X_i
+
+    Args:
+        J_param (float): Coupling strength for the nearest-neighbor ZZ interaction.
+                         (Corresponds to 'J' in the H = -J*ZZ - hx*X convention).
+        hx_param (float): Strength of the transverse X field.
+                          (Corresponds to 'hx' in the H = -J*ZZ - hx*X convention).
+        delta_hx (float): Small perturbation added to hx_param for the second copy.
+        n_qubits (int): Number of qubits per system (2n total).
+        time_evolution (float): The total time 't' for the evolution.
+                                The gate parameters will be scaled by this time.
+    """
+    total_qubits = 2 * n_qubits
+
+    def circuit():
+        # Start in |0⟩^⊗2n (computational basis initial state)
+        qml.BasisState(np.zeros(total_qubits, dtype=int), wires=range(total_qubits))
+
+        # --- First system (qubits 0 to n-1): Evolved under H = -J*ZZ - hx*X ---
+
+        # Apply ZZ interactions: exp(-i * (-J * t) * Z_i Z_{i+1}) = exp(i * J * t * Z_i Z_{i+1})
+        # The PennyLane IsingZZ gate is exp(-i * phi * Z_i Z_j).
+        # So phi = -J * time_evolution
+        for i in range(n_qubits - 1):
+            qml.IsingZZ(-J_param * time_evolution, wires=[i, i + 1])
+
+        qml.Barrier()  # Separator for visualization
+
+        # Apply transverse X fields: exp(-i * (-hx * t) * X_i) = exp(i * hx * t * X_i)
+        # The PennyLane RX gate is exp(-i * phi * X_i / 2).
+        # So phi/2 = hx * time_evolution => phi = 2 * hx * time_evolution
+        for i in range(n_qubits):
+            qml.RX(2 * hx_param * time_evolution, wires=i)
+
+        qml.Barrier()  # Separator for visualization
+
+        # --- Second system (qubits n to 2n-1): Evolved under H = -J*ZZ - (hx+delta_hx)*X ---
+        offset = n_qubits
+        perturbed_hx = hx_param + delta_hx
+
+        # Apply ZZ interactions (same J_param as first system)
+        for i in range(n_qubits - 1):
+            qml.IsingZZ(-J_param * time_evolution, wires=[offset + i, offset + i + 1])
+
+        qml.Barrier()  # Separator for visualization
+
+        # Apply perturbed transverse X fields
+        for i in range(n_qubits):
+            qml.RX(2 * perturbed_hx * time_evolution, wires=offset + i)
+
+        qml.Barrier()  # Separator for visualization
+
+        # Optional: You might return the state or measurements depending on your use case
+        # E.g., return qml.state() or qml.expval(qml.PauliZ(0))
+
+    return circuit
+
+
 def make_xx_plus_z_circuits(j_param, hz_param, delta, n_qubits):
     """
     Returns a function that prepares a 2n-qubit quantum state:
