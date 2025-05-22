@@ -14,8 +14,8 @@ class TransverseFieldIsingModel:
 
     Where:
     - J: Coupling strength for the nearest-neighbor Ising (ZZ) interaction.
-         J > 0: Ferromagnetic interaction (spins prefer to align).
-         J < 0: Antiferromagnetic interaction (spins prefer to anti-align).
+          J > 0: Ferromagnetic interaction (spins prefer to align).
+          J < 0: Antiferromagnetic interaction (spins prefer to anti-align).
     - h_x: Strength of the magnetic field in the transverse (X) direction.
            This term drives quantum fluctuations and can lead to quantum phase transitions.
 
@@ -161,7 +161,7 @@ class TransverseFieldIsingModel:
         rho_evolved = U @ self.initial_rho @ U.conj().T
         return rho_evolved
 
-    def generate_perturbed_density_matrices(self, delta_h_x, time=0):
+    def generate_perturbed_density_matrices(self, delta_h_x, time):
         """
         Generates two density matrices: one evolved with the original (J, h_x) parameters
         and another with a perturbed transverse field (h_x + delta_h_x).
@@ -189,7 +189,7 @@ class TransverseFieldIsingModel:
         return rho_original, rho_perturbed
 
     def generate_mixed_states_with_perturbation(
-        self, trace_out_indices, delta_h_x, time=0
+        self, trace_out_indices, delta_h_x, time
     ):
         """
         Generates two mixed states by tracing out specified qubits from the evolved pure states:
@@ -231,7 +231,7 @@ class TransverseFieldIsingModel:
         - param_value (float): The specific value of h_x at which to compute the derivative.
                                (The class's h_x parameter will be temporarily set to this value).
         - delta_param (float, optional): Small step size for numerical differentiation.
-                                        The total step used is 2 * delta_param.
+                                         The total step used is 2 * delta_param.
         - time (float): The evolution time `t` for the density matrices used in the derivative.
 
         Returns:
@@ -264,7 +264,7 @@ class TransverseFieldIsingModel:
 
         Parameters:
         - h_x_val (float): The specific value of the transverse field h_x at which to compute QFI.
-                          (The class's h_x parameter will be temporarily set to this value during calculation).
+                           (The class's h_x parameter will be temporarily set to this value during calculation).
         - time (float): The evolution time `t` for the density matrix.
         - delta_h_x_num_deriv (float, optional): Step size for numerical differentiation of drho.
 
@@ -284,31 +284,32 @@ class TransverseFieldIsingModel:
         )
 
         # Compute the eigenvalues and eigenvectors of the density matrix (rho must be Hermitian)
+        # np.linalg.eigh is used for Hermitian matrices.
         eigenvalues, eigenvectors = np.linalg.eigh(rho)
 
         # Initialize QFI sum
         F_Q = 0.0
 
         # Compute matrix elements of SLD in the eigenbasis of rho
+        # The QFI for a mixed state rho with eigenvalues p_k and eigenvectors |k>
+        # with respect to a parameter lambda is given by:
+        # F_Q = sum_{i,j} (2 * |<i| d(rho)/d(lambda) |j>|^2) / (p_i + p_j)
+        # where d(rho)/d(lambda) is the derivative of rho with respect to lambda.
         for i in range(len(eigenvalues)):
             for j in range(len(eigenvalues)):
                 # Avoid division by zero for nearly zero or zero eigenvalues
-                # Check if the sum of eigenvalues is effectively zero
+                # If the sum of eigenvalues is effectively zero, the term is skipped.
                 if np.isclose(eigenvalues[i] + eigenvalues[j], 0.0, atol=1e-10):
-                    continue  # Skip term if sum of eigenvalues is too small to avoid numerical instability
+                    continue
 
                 # Project drho into the eigenbasis of rho: <v_i | drho | v_j>
                 drho_ij = np.dot(
                     eigenvectors[:, i].conj().T, np.dot(drho, eigenvectors[:, j])
                 )
 
-                # Calculate the element of the Symmetric Logarithmic Derivative (SLD)
-                L_ij = 2 * drho_ij / (eigenvalues[i] + eigenvalues[j])
-
-                # Add term to Quantum Fisher Information (QFI)
-                F_Q += (
-                    np.abs(L_ij) ** 2 * eigenvalues[j]
-                )  # This is the standard formula for QFI of mixed states
+                # Add term to Quantum Fisher Information (QFI) using the corrected formula
+                # F_Q = sum_{i,j} (2 * |<i| drho |j>|^2) / (eigenvalues[i] + eigenvalues[j])
+                F_Q += (2 * np.abs(drho_ij) ** 2) / (eigenvalues[i] + eigenvalues[j])
 
         # Restore original h_x value after computation
         self.h_x = original_h_x
