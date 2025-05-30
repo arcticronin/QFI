@@ -9,7 +9,7 @@ from pennylane import (
     numpy as np,
 )  # Use PennyLane's numpy for potential autograd compatibility
 from scipy.optimize import minimize
-from math import sqrt  # Using global sqrt for clarity with mathematical formulas
+from math import sqrt
 
 
 def ansatz_U(params, wires_to_act_on, L):
@@ -206,6 +206,9 @@ def vqfe_main(
         "sigma_rotated_final": sigma_rot_final,
         "T_matrix_eigvals": eigvals_T,
     }
+
+
+#### old implementations
 
 
 def vqfe_from_circuit_disjoint(

@@ -46,7 +46,6 @@ active_rho_delta = [x + N for x in active_rho]
 
 measured_wires = active_rho + active_rho_delta
 discarded_wires = [x for x in range(2 * N) if x not in measured_wires]
-h_z = 0.1
 
 
 # Your existing circuit setup

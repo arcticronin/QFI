@@ -76,7 +76,7 @@ def simulation(
     rho, rho_delta = model.generate_density_matrices_with_perturbation(delta=delta)
 
     ## Getting results from classical QFI
-    results = classicalQFI.compute_tqfi_bounds(
+    results = classicalQFI_old.compute_tqfi_bounds(
         rho=rho, rho_delta=rho_delta, m=m, delta=delta
     )
 
