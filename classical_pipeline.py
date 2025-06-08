@@ -2,10 +2,12 @@ import density_generator
 
 # from qiskit.visualization import plot_state_city
 from importlib import reload
-import pandas as pd
-import numpy as np
+
+# import pandas as pd
+# import numpy as np
 import classicalQFI
-import qutip
+
+# import qutip
 import helper_functions
 
 reload(helper_functions)
@@ -17,15 +19,14 @@ reload(classicalQFI)
 
 def main(
     N=3,
-    n=2,
+    n=2,  # should i need it?
     time_t=1.0,
     J=1,
-    delta=0.5,
-    delta_h_x=0.1,
+    delta=0.5,  #  delta for sigma+delta, used also in computation of bounds
+    derivative_delta=1e-3,  # delta for numerical differentiation in SLD
     h_x=0.5,
     m=1,
     DEBUG=False,
-    derivative_delta=1e-3,
     trace_out_indices=None,
     SLD=False,
 ):
@@ -35,7 +36,7 @@ def main(
     )
 
     rho_mixed, rho_delta_mixed = model.generate_mixed_states_with_perturbation(
-        delta_h_x=delta_h_x,
+        delta_h_x=delta,
         trace_out_indices=trace_out_indices,
         time=time_t,
     )
