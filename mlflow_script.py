@@ -19,7 +19,7 @@ from scipy.linalg import eigh
 def main():
     # --- Global Simulation Configuration ---
     SIMULATION_TYPE = "classical"  #  "classical" or "quantum"
-    N = 19
+    N = 9
     n = 8
     J = 1
     time_t = 1.0
