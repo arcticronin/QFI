@@ -334,7 +334,7 @@ def dm_to_qobj(numpy_dm, dims_ket_list=None, title=None):
         # QuTiP can handle Qobj(np.array([[]]), dims=[[0],[0]])
         # but it's a bit strange for a density matrix.
         # For consistency, let's use [[0],[0]] if no dims_ket_list provided.
-        # Or one could raise an error.
+        # open option to coiuld be to raise an error.
         if dims_ket_list is None:
             final_dims_ket = [0]
         elif (
@@ -379,7 +379,7 @@ def dm_to_qobj(numpy_dm, dims_ket_list=None, title=None):
     #    print(title)
     # print(q_dm)
 
-    # You might want to add some basic checks if it's a valid DM
+    # thisi is a basic check if it's a valid DM, but im not using it
     # print(f"  Is Hermitian: {q_dm.isherm}")
     # if q_dm.isherm:
     #     try:

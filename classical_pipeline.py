@@ -9,6 +9,7 @@ import classicalQFI
 
 # import qutip
 import helper_functions
+import numpy as np
 
 reload(helper_functions)
 reload(density_generator)
@@ -50,5 +51,10 @@ def main(
             h_x_val=h_x
         )  # todo check fderivatives
         results["qfi_from_SLD"] = qfi_from_SLD
+
+    if DEBUG:
+        results["purity"] = np.trace(
+            rho_mixed @ rho_mixed
+        ).real  # purity of the mixed state
 
     return results

@@ -1,0 +1,14 @@
+artifact_uri: file:///home/ronin/Dev/space/QFI/mlruns/0/5db6cbf19e9749c693703d0a281fc2e5/artifacts
+end_time: 1750157161163
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 5db6cbf19e9749c693703d0a281fc2e5
+run_name: h_x_Sweep_classical_N10_J1_t1.0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750155603744
+status: 3
+tags: []
+user_id: ronin

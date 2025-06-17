@@ -229,9 +229,9 @@ class TransverseFieldIsingModel:
 
         Parameters:
         - param_value (float): The specific value of h_x at which to compute the derivative.
-                               (The class's h_x parameter will be temporarily set to this value).
+                                (The class's h_x parameter will be temporarily set to this value).
         - delta_deriv (float, optional): Small step size for numerical differentiation.
-                                         The total step used is 2 * delta_param.
+                                        The total step used is 2 * delta_deriv.
         - time (float): The evolution time `t` for the density matrices used in the derivative.
 
         Returns:
@@ -240,11 +240,11 @@ class TransverseFieldIsingModel:
         # Store original h_x to restore it later
         original_h_x = self.h_x
 
-        # Calculate rho at (param_value + delta_param)
+        # Calculate rho at (param_value + delta_deriv)
         self.h_x = param_value + delta_deriv
         rho_plus_delta = self.evolve_density_matrix(time)
 
-        # Calculate rho at (param_value - delta_param)
+        # Calculate rho at (param_value - delta_deriv)
         self.h_x = param_value - delta_deriv
         rho_minus_delta = self.evolve_density_matrix(time)
 
@@ -264,7 +264,7 @@ class TransverseFieldIsingModel:
 
         Parameters:
         - h_x_val (float): The specific value of the transverse field h_x at which to compute QFI.
-                           (The class's h_x parameter will be temporarily set to this value during calculation).
+                            (The class's h_x parameter will be temporarily set to this value during calculation).
         - time (float): The evolution time `t` for the density matrix.
         - delta_h_x_num_deriv (float, optional): Step size for numerical differentiation of drho.
 
@@ -279,8 +279,9 @@ class TransverseFieldIsingModel:
         rho = self.evolve_density_matrix(time)
 
         # Compute the numerical derivative of the density matrix with respect to h_x
+        # Corrected: Changed delta_param to delta_deriv to match the function signature
         drho = self.compute_drho_numerical(
-            param_value=h_x_val, delta_param=delta_h_x_num_deriv, time=time
+            param_value=h_x_val, delta_deriv=delta_h_x_num_deriv, time=time
         )
 
         # Compute the eigenvalues and eigenvectors of the density matrix (rho must be Hermitian)

@@ -4,6 +4,7 @@ import numpy as np
 DEBUG = True
 
 
+# use the version with trotter decomposition
 def make_tfim_circuits(J_param, hx_param, delta_hx, n_qubits, time_evolution=1.0):
     """
     Returns a function that prepares a 2n-qubit quantum state representing:
