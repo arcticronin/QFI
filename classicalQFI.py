@@ -5,7 +5,7 @@ import helper_functions
 reload(helper_functions)
 
 """
-TODO eigencalue crossing can be a problem at some points, at a drop of the fidelity between 2 matrices
+TODO eigenvalue crossing can be a problem at some points, at a drop of the fidelity between 2 matrices
 """
 
 # Globals
@@ -109,8 +109,8 @@ def compute_tqfi_bounds(rho, rho_delta, m, delta, DEBUG=False):
     )
 
     fidelity_truncated_generalized = fidelity_truncated + correction_term
-    # Step 3: Compute true fidelity (for comparison)
 
+    # Step 3: Compute true fidelity (for comparison)
     fidelity_true = helper_functions.fidelity(rho, rho_delta, root=True, DEBUG=DEBUG)
     uhlmann_fidelity = helper_functions.uhlmann_fidelity_root(rho, rho_delta)
     fidelity_pennylane = helper_functions.fidelity_pennylane(rho, rho_delta)

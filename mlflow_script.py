@@ -18,20 +18,20 @@ from scipy.linalg import eigh
 
 def main():
     # --- Global Simulation Configuration ---
-    SIMULATION_TYPE = "classical"  #  "classical" or "quantum"
-    N = 9
-    n = 8
+    SIMULATION_TYPE = "quantum"  #  "classical" or "quantum"
+    N = 5
+    n = 4
     J = 1
     time_t = 1.0
     delta_h_x = 0.1  # [0.01..0.1] This delta is used for the perturbation in the Hamiltonian AND the QFI formula
-    m = 1  # most meaningful eigenvectors
+    m = 2  # most meaningful eigenvectors
     DEBUG = True  # true in classical also tracks purity
 
     # Parameters for classical pipeline (if applicable)
-    derivative_delta = 1e-3
+    derivative_delta = 1e-2
 
     # Parameters for quantum pipeline (if applicable)
-    trotter_steps_K = 3
+    trotter_steps_K = 4
     trotter_order = 1
 
     # --- h_x Sweep Configuration ---
@@ -44,7 +44,7 @@ def main():
     if N - n < 0:
         raise ValueError("n must be less than or equal to N to trace out qubits.")
     if N - n > 0:
-        np.random.seed(42)  # For reproducibility of random choice
+        # np.random.seed(42)  # For reproducibility of random choice
         global_trace_out_indices = np.random.choice(
             range(N), size=N - n, replace=False
         ).tolist()
@@ -58,7 +58,7 @@ def main():
     print(f"J: {J}")
     print(f"time_t: {time_t}")
     print(f"delta_h_x (physical perturbation AND QFI formula delta): {delta_h_x}")
-    print(f"Number of measurements (m): {m}")
+    print(f"Eigenvector basis size (m): {m}")
     print(f"DEBUG mode: {DEBUG}")
     print(f"h_x sweep range: {h_x_start} to {h_x_end} in {h_x_steps} steps.")
     print(f"Common trace_out_indices: {global_trace_out_indices}")
@@ -70,7 +70,9 @@ def main():
     print("---------------------------------------\n")
 
     # --- Start a single MLflow run for the entire sweep ---
-    with mlflow.start_run(run_name=f"h_x_Sweep_{SIMULATION_TYPE}_N{N}_J{J}_t{time_t}"):
+    with mlflow.start_run(
+        run_name=f"h_x_Sweep_{SIMULATION_TYPE}_N{N}_n{n}_delta_h_x{delta_h_x}"
+    ):
         # Log common parameters for this consolidated run (not varying in the sweep)
         mlflow.log_param("SIMULATION_TYPE", SIMULATION_TYPE)
         mlflow.log_param("N", N)
@@ -79,6 +81,8 @@ def main():
         mlflow.log_param("time_t", time_t)
         mlflow.log_param("delta_h_x", delta_h_x)
         mlflow.log_param("m", m)
+        mlflow.log_param("h_x_start", h_x_start)
+        mlflow.log_param("h_x_end", h_x_end)
         mlflow.log_param("trace_out_indices", str(global_trace_out_indices))
         mlflow.log_param("DEBUG", DEBUG)
 
@@ -129,10 +133,12 @@ def main():
                 "h_x_value", current_h_x, step=step
             )  # Log h_x as a metric
             for key, value in results_dict.items():
+                # if isinstance(value, complex):
+                #     mlflow.log_metric(key + "_real", value.real, step=step)
+                #     if not np.isclose(value.imag, 0.0, atol=1e-9):
+                #         mlflow.log_metric(key + "_imag", value.imag, step=step)
                 if isinstance(value, complex):
-                    mlflow.log_metric(key + "_real", value.real, step=step)
-                    if not np.isclose(value.imag, 0.0, atol=1e-9):
-                        mlflow.log_metric(key + "_imag", value.imag, step=step)
+                    mlflow.log_metric(key, value.real, step=step)
                 else:
                     mlflow.log_metric(key, value, step=step)
 
